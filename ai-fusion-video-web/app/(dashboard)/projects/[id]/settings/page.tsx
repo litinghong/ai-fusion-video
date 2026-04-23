@@ -62,6 +62,7 @@ export default function ProjectSettingsPage() {
   const savedProperties = (project?.properties as Record<string, string>) || {};
 
   // 本地暂存
+  const [projectName, setProjectName] = useState<string>("");
   const [propsDraft, setPropsDraft] = useState<Record<string, string>>({});
   const [artStyle, setArtStyle] = useState<string>("");
   const [artStyleDescription, setArtStyleDescription] = useState<string>("");
@@ -84,6 +85,7 @@ export default function ProjectSettingsPage() {
   // 当后端数据变化时，同步到本地
   useEffect(() => {
     if (!project) return;
+    setProjectName(project.name || "");
     setPropsDraft({ ...savedProperties });
     setArtStyle(project.artStyle || "");
     setArtStyleDescription(project.artStyleDescription || "");
@@ -95,6 +97,7 @@ export default function ProjectSettingsPage() {
   // 是否有未保存的修改
   const hasChanges = useMemo(() => {
     if (!project) return false;
+    if ((projectName || "").trim() !== (project.name || "").trim()) return true;
     // 检查 properties
     const keys = new Set([...Object.keys(propsDraft), ...Object.keys(savedProperties)]);
     for (const k of keys) {
@@ -106,7 +109,7 @@ export default function ProjectSettingsPage() {
     if ((artStyleImagePrompt || "") !== (project.artStyleImagePrompt || "")) return true;
     if ((artStyleImageUrl || "") !== (project.artStyleImageUrl || "")) return true;
     return false;
-  }, [propsDraft, savedProperties, artStyle, artStyleDescription, artStyleImagePrompt, artStyleImageUrl, project]);
+  }, [projectName, propsDraft, savedProperties, artStyle, artStyleDescription, artStyleImagePrompt, artStyleImageUrl, project]);
 
   const handleToggleProp = (key: string, value: string) => {
     setPropsDraft((prev) => {
@@ -234,6 +237,7 @@ export default function ProjectSettingsPage() {
       // 更新画风独立字段
       await projectApi.update({
         id: project.id,
+        name: projectName.trim() || project.name,
         artStyle: artStyle || null,
         artStyleDescription: artStyleDescription || null,
         artStyleImagePrompt: artStyleImagePrompt || null,
@@ -286,6 +290,18 @@ export default function ProjectSettingsPage() {
         <div className="flex items-center gap-2 mb-3">
           <Type className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold">项目类型</h3>
+        </div>
+        <div className="mb-4">
+          <label className="block text-xs text-muted-foreground mb-1.5">项目名称</label>
+          <input
+            value={projectName}
+            onChange={(e) => setProjectName(e.target.value)}
+            placeholder="请输入项目名称"
+            className={cn(
+              "w-full rounded-lg border border-border/30 bg-background/70 px-3 py-2 text-sm outline-none transition-all",
+              "focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
+            )}
+          />
         </div>
         <div className="flex flex-wrap gap-2">
           {projectTypes.map((t) => (
