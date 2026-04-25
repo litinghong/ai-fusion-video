@@ -1,0 +1,62 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "AI Fusion Video",
+  "version": "0.2.1",
+  "identifier": "cn.aigateways.fusion",
+  "build": {
+    "devUrl": "https://fusion.aigateways.cn",
+    "frontendDist": "https://fusion.aigateways.cn",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": ""
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "AI Fusion Video",
+        "url": "https://fusion.aigateways.cn",
+        "width": 1440,
+        "height": 960,
+        "minWidth": 1024,
+        "minHeight": 720,
+        "center": true,
+        "resizable": true,
+        "fullscreen": false,
+        "zoomHotkeysEnabled": true,
+        "userAgent": "AI Fusion Video Desktop/0.2.1"
+      }
+    ],
+    "security": {
+      "capabilities": [],
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg", "nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.ico",
+      "icons/icon.icns"
+    ],
+    "category": "Productivity",
+    "shortDescription": "AI Fusion Video desktop client",
+    "longDescription": "AI Fusion Video desktop client for https://fusion.aigateways.cn",
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "displayLanguageSelector": true,
+        "installMode": "currentUser",
+        "languages": ["SimpChinese", "English"]
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.13"
+    }
+  }
+}

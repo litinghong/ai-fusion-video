@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AuthLayout } from "@/components/ui/auth-layout";
 import { useAuthStore } from "@/lib/store/auth-store";
@@ -207,6 +208,15 @@ function LoginContent() {
         >
           还没有账号？去注册
         </button>
+
+        <a
+          href="https://ai-fusion.tos-cn-guangzhou.volces.com/desktop-app/ai-fusion-video-desktop.exe"
+          download
+          className="flex w-full items-center justify-center gap-2 rounded-full border border-white/10 px-4 py-3 text-sm text-white/70 transition-colors hover:border-white/25 hover:bg-white/5 hover:text-white"
+        >
+          <Download className="size-4" aria-hidden="true" />
+          下载 Windows 桌面版
+        </a>
       </form>
 
       {/* 底部信息 */}

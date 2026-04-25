@@ -1,0 +1,25 @@
+{
+  "name": "ai-fusion-video-desktop",
+  "version": "0.2.1",
+  "private": true,
+  "description": "Desktop shell for AI Fusion Video",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "tauri": "tauri",
+    "icons": "node scripts/generate-icons.mjs && tauri icon src-tauri/icons/app-icon.png",
+    "build": "node scripts/generate-icons.mjs && tauri icon src-tauri/icons/app-icon.png && tauri build",
+    "build:mac": "sh scripts/build-macos.sh universal-apple-darwin",
+    "build:mac:x64": "sh scripts/build-macos.sh x86_64-apple-darwin",
+    "build:mac:arm64": "sh scripts/build-macos.sh aarch64-apple-darwin",
+    "build:win": "powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1 -Arch all",
+    "build:win:x64": "powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1 -Arch x64",
+    "build:win:arm64": "powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1 -Arch arm64",
+    "build:win:x64:cross": "sh scripts/build-windows-cross.sh x86_64-pc-windows-msvc",
+    "build:win:arm64:cross": "sh scripts/build-windows-cross.sh aarch64-pc-windows-msvc"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
