@@ -12,6 +12,7 @@ const KEY_ENABLED = "third_party_newapi_enabled";
 const KEY_BASE_URL = "third_party_newapi_base_url";
 const KEY_EMAIL_VERIFY_ENABLED = "third_party_newapi_email_verification_enabled";
 const KEY_MODEL_SYNC_ENABLED = "third_party_newapi_model_sync_enabled";
+const KEY_DISABLE_USER_MODEL_CONFIG = "third_party_newapi_disable_user_model_config";
 const KEY_SYSTEM_ACCESS_TOKEN = "third_party_newapi_system_access_token";
 const DEFAULT_BASE_URL = "http://localhost:3001";
 
@@ -20,6 +21,7 @@ interface NewApiConfigs {
   baseUrl: string;
   emailVerificationEnabled: boolean;
   modelSyncEnabled: boolean;
+  disableUserModelConfig: boolean;
   systemAccessToken: string;
 }
 
@@ -38,6 +40,7 @@ export default function ThirdPartySettingsPage() {
     baseUrl: DEFAULT_BASE_URL,
     emailVerificationEnabled: false,
     modelSyncEnabled: true,
+    disableUserModelConfig: false,
     systemAccessToken: "",
   });
   const [original, setOriginal] = useState<NewApiConfigs>({
@@ -45,6 +48,7 @@ export default function ThirdPartySettingsPage() {
     baseUrl: DEFAULT_BASE_URL,
     emailVerificationEnabled: false,
     modelSyncEnabled: true,
+    disableUserModelConfig: false,
     systemAccessToken: "",
   });
 
@@ -62,6 +66,7 @@ export default function ThirdPartySettingsPage() {
           baseUrl: (map[KEY_BASE_URL] || DEFAULT_BASE_URL).trim() || DEFAULT_BASE_URL,
           emailVerificationEnabled: parseBoolean(map[KEY_EMAIL_VERIFY_ENABLED]),
           modelSyncEnabled: parseBoolean(map[KEY_MODEL_SYNC_ENABLED], true),
+          disableUserModelConfig: parseBoolean(map[KEY_DISABLE_USER_MODEL_CONFIG]),
           systemAccessToken: (map[KEY_SYSTEM_ACCESS_TOKEN] || "").trim(),
         };
 
@@ -95,6 +100,7 @@ export default function ThirdPartySettingsPage() {
         [KEY_BASE_URL]: configs.baseUrl.trim() || DEFAULT_BASE_URL,
         [KEY_EMAIL_VERIFY_ENABLED]: String(configs.emailVerificationEnabled),
         [KEY_MODEL_SYNC_ENABLED]: String(configs.modelSyncEnabled),
+        [KEY_DISABLE_USER_MODEL_CONFIG]: String(configs.disableUserModelConfig),
         [KEY_SYSTEM_ACCESS_TOKEN]: configs.systemAccessToken.trim(),
       };
       await http.put("/api/system/config", nextConfigs);
@@ -203,6 +209,23 @@ export default function ThirdPartySettingsPage() {
               className="h-4 w-4 rounded border-border/50"
             />
             <span>开启模型同步</span>
+          </label>
+
+          <label className="flex items-start gap-3 text-sm">
+            <input
+              type="checkbox"
+              checked={configs.disableUserModelConfig}
+              onChange={(e) =>
+                setConfigs((prev) => ({ ...prev, disableUserModelConfig: e.target.checked }))
+              }
+              className="mt-0.5 h-4 w-4 rounded border-border/50"
+            />
+            <span className="space-y-1">
+              <span className="block">禁用用户配置大模型</span>
+              <span className="block text-[11px] text-muted-foreground">
+                开启后，AI 服务管理页将锁定添加 API 配置和编辑 API 配置，AI 模型仍可编辑或删除。
+              </span>
+            </span>
           </label>
 
           <div className={cn("space-y-1.5", (!configs.enabled || !configs.modelSyncEnabled) && "opacity-60")}>

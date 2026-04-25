@@ -1,6 +1,7 @@
 package com.stonewu.fusion.controller.ai;
 
 import com.stonewu.fusion.common.CommonResult;
+import com.stonewu.fusion.common.BusinessException;
 import com.stonewu.fusion.common.PageResult;
 import com.stonewu.fusion.controller.ai.vo.ApiConfigPageReqVO;
 import com.stonewu.fusion.controller.ai.vo.ApiConfigRespVO;
@@ -10,6 +11,7 @@ import com.stonewu.fusion.convert.ai.ApiConfigConvert;
 import com.stonewu.fusion.entity.ai.ApiConfig;
 import com.stonewu.fusion.service.ai.ApiConfigService;
 import com.stonewu.fusion.service.ai.provider.AiProviderService;
+import com.stonewu.fusion.service.system.SystemConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,10 +32,12 @@ public class ApiConfigController {
 
     private final ApiConfigService apiConfigService;
     private final AiProviderService aiProviderService;
+    private final SystemConfigService systemConfigService;
 
     @PostMapping("/create")
     @Operation(summary = "创建API配置")
     public CommonResult<Long> create(@Valid @RequestBody ApiConfigSaveReqVO reqVO) {
+        checkUserModelConfigEnabled();
         Long userId = requireCurrentUserId();
         ApiConfig config = ApiConfig.builder()
                 .name(reqVO.getName()).platform(reqVO.getPlatform())
@@ -49,6 +53,7 @@ public class ApiConfigController {
     @PutMapping("/update")
     @Operation(summary = "更新API配置")
     public CommonResult<Boolean> update(@Valid @RequestBody ApiConfigSaveReqVO reqVO) {
+        checkUserModelConfigEnabled();
         Long userId = requireCurrentUserId();
         apiConfigService.updateApiConfig(userId, reqVO.getId(), reqVO.getName(), reqVO.getPlatform(),
                 reqVO.getApiUrl(), reqVO.getAutoAppendV1Path(), reqVO.getApiKey(), reqVO.getAppId(),
@@ -99,5 +104,11 @@ public class ApiConfigController {
             return CommonResult.error(404, "API配置不存在");
         }
         return success(aiProviderService.listRemoteModels(config));
+    }
+
+    private void checkUserModelConfigEnabled() {
+        if (systemConfigService.isThirdPartyNewApiUserModelConfigDisabled()) {
+            throw new BusinessException(403, "当前系统已禁用用户配置大模型");
+        }
     }
 }

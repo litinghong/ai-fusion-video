@@ -26,6 +26,8 @@ public class SystemConfigService {
             "third_party_newapi_email_verification_enabled";
     public static final String KEY_THIRD_PARTY_NEWAPI_MODEL_SYNC_ENABLED =
             "third_party_newapi_model_sync_enabled";
+    public static final String KEY_THIRD_PARTY_NEWAPI_DISABLE_USER_MODEL_CONFIG =
+            "third_party_newapi_disable_user_model_config";
     public static final String KEY_THIRD_PARTY_NEWAPI_SYSTEM_ACCESS_TOKEN =
             "third_party_newapi_system_access_token";
     public static final String DEFAULT_THIRD_PARTY_NEWAPI_BASE_URL = "http://localhost:3001";
@@ -131,6 +133,10 @@ public class SystemConfigService {
 
     public boolean isThirdPartyNewApiModelSyncEnabled() {
         return parseBoolean(getValue(KEY_THIRD_PARTY_NEWAPI_MODEL_SYNC_ENABLED), true);
+    }
+
+    public boolean isThirdPartyNewApiUserModelConfigDisabled() {
+        return parseBoolean(getValue(KEY_THIRD_PARTY_NEWAPI_DISABLE_USER_MODEL_CONFIG), false);
     }
 
     public String getThirdPartyNewApiSystemAccessToken() {

@@ -59,6 +59,7 @@ import {
   maskSecret,
   getPlatformFields,
 } from "../_shared";
+import { getThirdPartyNewApiStatus } from "@/lib/api/auth";
 
 // ============================================================
 // API 配置 Dialog
@@ -2193,6 +2194,7 @@ export default function AiModelsPage() {
   // API 配置列表
   const [configs, setConfigs] = useState<ApiConfig[]>([]);
   const [configsLoading, setConfigsLoading] = useState(true);
+  const [apiConfigLocked, setApiConfigLocked] = useState(false);
 
   // Dialog 状态
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
@@ -2233,11 +2235,21 @@ export default function AiModelsPage() {
     }
   }, []);
 
+  const loadApiConfigLockStatus = useCallback(async () => {
+    try {
+      const data = await getThirdPartyNewApiStatus();
+      setApiConfigLocked(Boolean(data.userModelConfigDisabled));
+    } catch (err) {
+      console.error("加载 API 配置锁定状态失败:", err);
+    }
+  }, []);
+
   useEffect(() => {
     loadModels();
     loadConfigs();
     loadModelPresets();
-  }, [loadConfigs, loadModelPresets, loadModels]);
+    loadApiConfigLockStatus();
+  }, [loadApiConfigLockStatus, loadConfigs, loadModelPresets, loadModels]);
 
   const handleDeleteModel = async (id: number) => {
     if (!confirm("确定要删除该 AI 模型吗？")) return;
@@ -2281,12 +2293,21 @@ export default function AiModelsPage() {
             API 配置与模型
           </h3>
           <button
-            onClick={() => { setEditingConfig(null); setConfigDialogOpen(true); }}
+            onClick={() => {
+              if (apiConfigLocked) return;
+              setEditingConfig(null);
+              setConfigDialogOpen(true);
+            }}
+            disabled={apiConfigLocked}
+            title={apiConfigLocked ? "当前系统已禁用用户配置大模型" : "添加 API 配置"}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium",
-              "border border-dashed border-border/40 hover:border-primary/50",
-              "text-muted-foreground hover:text-primary",
-              "transition-all duration-200"
+              "border border-dashed border-border/40",
+              "text-muted-foreground",
+              "transition-all duration-200",
+              apiConfigLocked
+                ? "cursor-not-allowed opacity-50"
+                : "hover:border-primary/50 hover:text-primary"
             )}
           >
             <Plus className="h-3.5 w-3.5" />
@@ -2365,8 +2386,19 @@ export default function AiModelsPage() {
                         <CloudDownload className="h-3.5 w-3.5" />
                       </button>
                       <button
-                        onClick={() => { setEditingConfig(config); setConfigDialogOpen(true); }}
-                        className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                        onClick={() => {
+                          if (apiConfigLocked) return;
+                          setEditingConfig(config);
+                          setConfigDialogOpen(true);
+                        }}
+                        disabled={apiConfigLocked}
+                        title={apiConfigLocked ? "当前系统已禁用用户配置大模型" : "编辑 API 配置"}
+                        className={cn(
+                          "p-1.5 rounded-md text-muted-foreground transition-colors",
+                          apiConfigLocked
+                            ? "cursor-not-allowed opacity-50"
+                            : "hover:text-primary hover:bg-primary/10"
+                        )}
                       >
                         <Edit2 className="h-3.5 w-3.5" />
                       </button>

@@ -92,6 +92,7 @@ public class AuthController {
         return success(NewApiStatusRespVO.builder()
                 .enabled(enabled)
                 .emailVerificationEnabled(emailVerificationRequired)
+                .userModelConfigDisabled(newApiAuthService.isUserModelConfigDisabled())
                 .build());
     }
 
@@ -396,6 +397,7 @@ public class AuthController {
     public static class NewApiStatusRespVO {
         private Boolean enabled;
         private Boolean emailVerificationEnabled;
+        private Boolean userModelConfigDisabled;
     }
 
     @Data

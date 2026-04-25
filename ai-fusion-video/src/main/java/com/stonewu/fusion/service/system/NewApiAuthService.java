@@ -47,6 +47,10 @@ public class NewApiAuthService {
         return systemConfigService.isThirdPartyNewApiEmailVerificationEnabled();
     }
 
+    public boolean isUserModelConfigDisabled() {
+        return systemConfigService.isThirdPartyNewApiUserModelConfigDisabled();
+    }
+
     /**
      * 注册场景下是否需要邮箱验证码：
      * 1. 本地显式开启时，直接要求；

@@ -64,6 +64,7 @@ export interface ChangePasswordReq {
 export interface ThirdPartyNewApiStatusResp {
   enabled: boolean;
   emailVerificationEnabled: boolean;
+  userModelConfigDisabled: boolean;
 }
 
 export interface ThirdPartyVerificationReqVO {
