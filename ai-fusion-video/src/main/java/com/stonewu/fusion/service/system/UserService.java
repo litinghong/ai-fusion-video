@@ -382,7 +382,7 @@ public class UserService {
 
     @Transactional
     @CacheEvict(value = "userByUsername", allEntries = true)
-    public String resetPassword(Long userId) {
+    public String resetPassword(Long userId, Long operatorUserId) {
         User user = userMapper.selectById(userId);
         if (user == null) {
             throw new BusinessException(404, "用户不存在");
@@ -390,7 +390,9 @@ public class UserService {
         String temporaryPassword = generateTemporaryPassword(12);
         user.setPassword(passwordEncoder.encode(temporaryPassword));
         userMapper.updateById(user);
-        tokenService.revokeUserTokens(userId);
+        if (operatorUserId == null || !operatorUserId.equals(userId)) {
+            tokenService.revokeUserTokens(userId);
+        }
         return temporaryPassword;
     }
 

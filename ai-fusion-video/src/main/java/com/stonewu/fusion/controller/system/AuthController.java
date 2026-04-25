@@ -7,6 +7,7 @@ import com.stonewu.fusion.controller.system.vo.UserRespVO;
 import com.stonewu.fusion.entity.system.Role;
 import com.stonewu.fusion.entity.system.User;
 import com.stonewu.fusion.security.SecurityUserDetails;
+import com.stonewu.fusion.security.SecurityUtils;
 import com.stonewu.fusion.security.TokenService;
 import com.stonewu.fusion.service.system.NewApiAuthService;
 import com.stonewu.fusion.service.system.NewApiModelSyncService;
@@ -89,10 +90,20 @@ public class AuthController {
     public CommonResult<NewApiStatusRespVO> getNewApiStatus() {
         boolean enabled = newApiAuthService.isEnabled();
         boolean emailVerificationRequired = enabled && newApiAuthService.isRegisterEmailVerificationRequired();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        boolean thirdPartyAccountBound = currentUserId != null
+                && userThirdPartyBindingService.getNewApiBinding(currentUserId) != null;
+        boolean passwordChangeDisabled = isPasswordChangeDisabledForUser(currentUserId, enabled, thirdPartyAccountBound);
+        String passwordChangeDisableReason = passwordChangeDisabled
+                ? "当前账号已绑定第三方账号，密码由第三方统一管理，本地暂不支持修改密码"
+                : null;
         return success(NewApiStatusRespVO.builder()
                 .enabled(enabled)
                 .emailVerificationEnabled(emailVerificationRequired)
                 .userModelConfigDisabled(newApiAuthService.isUserModelConfigDisabled())
+                .thirdPartyAccountBound(thirdPartyAccountBound)
+                .passwordChangeDisabled(passwordChangeDisabled)
+                .passwordChangeDisableReason(passwordChangeDisableReason)
                 .build());
     }
 
@@ -178,8 +189,26 @@ public class AuthController {
     public CommonResult<Boolean> changePassword(@Valid @RequestBody ChangePasswordReqVO reqVO) {
         SecurityUserDetails userDetails = (SecurityUserDetails) SecurityContextHolder.getContext()
                 .getAuthentication().getPrincipal();
+        if (isPasswordChangeDisabledForUser(userDetails.getUserId(), null, null)) {
+            throw new BusinessException(400, "当前账号已绑定第三方账号，密码由第三方统一管理，本地暂不支持修改密码");
+        }
         userService.changePassword(userDetails.getUserId(), reqVO.getOldPassword(), reqVO.getNewPassword());
         return success(true);
+    }
+
+    private boolean isPasswordChangeDisabledForUser(Long userId, Boolean enabledValue, Boolean boundValue) {
+        if (userId == null) {
+            return false;
+        }
+        boolean enabled = enabledValue != null ? enabledValue : newApiAuthService.isEnabled();
+        if (!enabled) {
+            return false;
+        }
+        if (userService.isAdminUser(userId)) {
+            return false;
+        }
+        boolean bound = boundValue != null ? boundValue : userThirdPartyBindingService.getNewApiBinding(userId) != null;
+        return bound;
     }
 
     /**
@@ -398,6 +427,9 @@ public class AuthController {
         private Boolean enabled;
         private Boolean emailVerificationEnabled;
         private Boolean userModelConfigDisabled;
+        private Boolean thirdPartyAccountBound;
+        private Boolean passwordChangeDisabled;
+        private String passwordChangeDisableReason;
     }
 
     @Data

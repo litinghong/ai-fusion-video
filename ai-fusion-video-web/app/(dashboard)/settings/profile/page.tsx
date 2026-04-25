@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   User,
   Key,
@@ -166,6 +166,25 @@ export default function ProfileSettingsPage() {
   const [pwError, setPwError] = useState("");
   const [showOldPw, setShowOldPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
+  const [passwordChangeDisabled, setPasswordChangeDisabled] = useState(false);
+  const [passwordDisableReason, setPasswordDisableReason] = useState(
+    "当前账号已绑定第三方账号，密码由第三方账号体系统一管理，本地暂不支持修改密码。"
+  );
+
+  useEffect(() => {
+    const loadThirdPartyStatus = async () => {
+      try {
+        const status = await authApi.getThirdPartyNewApiStatus();
+        setPasswordChangeDisabled(Boolean(status.passwordChangeDisabled));
+        if (status.passwordChangeDisableReason) {
+          setPasswordDisableReason(status.passwordChangeDisableReason);
+        }
+      } catch {
+        setPasswordChangeDisabled(false);
+      }
+    };
+    void loadThirdPartyStatus();
+  }, []);
 
   // 用户名首字母（用于头像占位）
   const avatarInitial = (user?.nickname || user?.username || "U")
@@ -175,6 +194,10 @@ export default function ProfileSettingsPage() {
   const handleChangePassword = async () => {
     setPwSuccess("");
     setPwError("");
+    if (passwordChangeDisabled) {
+      setPwError(passwordDisableReason);
+      return;
+    }
 
     if (!pwForm.oldPassword.trim()) {
       setPwError("请输入旧密码");
@@ -329,11 +352,13 @@ export default function ProfileSettingsPage() {
                     type={showOldPw ? "text" : "password"}
                     placeholder="请输入当前密码"
                     value={pwForm.oldPassword}
+                    disabled={passwordChangeDisabled}
                     onChange={e => setPwForm(prev => ({ ...prev, oldPassword: e.target.value }))}
                     className="text-sm pr-9"
                   />
                   <button
                     type="button"
+                    disabled={passwordChangeDisabled}
                     onClick={() => setShowOldPw(!showOldPw)}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   >
@@ -352,11 +377,13 @@ export default function ProfileSettingsPage() {
                     type={showNewPw ? "text" : "password"}
                     placeholder="至少 6 个字符"
                     value={pwForm.newPassword}
+                    disabled={passwordChangeDisabled}
                     onChange={e => setPwForm(prev => ({ ...prev, newPassword: e.target.value }))}
                     className="text-sm pr-9"
                   />
                   <button
                     type="button"
+                    disabled={passwordChangeDisabled}
                     onClick={() => setShowNewPw(!showNewPw)}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   >
@@ -374,10 +401,15 @@ export default function ProfileSettingsPage() {
                   type="password"
                   placeholder="再次输入新密码"
                   value={pwForm.confirmPassword}
+                  disabled={passwordChangeDisabled}
                   onChange={e => setPwForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
                   className="text-sm"
                 />
               </div>
+
+              {passwordChangeDisabled && (
+                <p className="text-xs text-muted-foreground pt-1">{passwordDisableReason}</p>
+              )}
 
               {/* 反馈消息 */}
               {pwSuccess && (
@@ -395,61 +427,18 @@ export default function ProfileSettingsPage() {
                 <Button
                   size="sm"
                   onClick={handleChangePassword}
-                  disabled={pwSaving || !pwForm.oldPassword || !pwForm.newPassword || !pwForm.confirmPassword}
+                  disabled={
+                    passwordChangeDisabled
+                    || pwSaving
+                    || !pwForm.oldPassword
+                    || !pwForm.newPassword
+                    || !pwForm.confirmPassword
+                  }
                 >
                   {pwSaving && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
                   修改密码
                 </Button>
               </div>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* ========== 账户信息卡片 ========== */}
-      <motion.div variants={itemVariants} className="mb-8">
-        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 px-1">
-          账户信息
-        </h3>
-        <div
-          className={cn(
-            "rounded-xl border border-border/30 overflow-hidden",
-            "bg-card/50 backdrop-blur-sm"
-          )}
-        >
-          <div className="divide-y divide-border/10">
-            <div className="flex items-center justify-between px-6 py-3.5">
-              <span className="text-xs text-muted-foreground">用户名</span>
-              <span className="text-sm font-mono">{user?.username || "—"}</span>
-            </div>
-            <div className="flex items-center justify-between px-6 py-3.5">
-              <span className="text-xs text-muted-foreground">用户 ID</span>
-              <span className="text-sm font-mono">{user?.id || "—"}</span>
-            </div>
-            <div className="flex items-center justify-between px-6 py-3.5">
-              <span className="text-xs text-muted-foreground">角色</span>
-              <div className="flex items-center gap-1.5">
-                {user?.roles?.map((role) => (
-                  <span
-                    key={role}
-                    className="px-2 py-0.5 rounded-full bg-primary/10 text-[10px] text-primary font-medium"
-                  >
-                    {role}
-                  </span>
-                )) || <span className="text-sm text-muted-foreground">—</span>}
-              </div>
-            </div>
-            <div className="flex items-center justify-between px-6 py-3.5">
-              <span className="text-xs text-muted-foreground">注册时间</span>
-              <span className="text-sm font-mono">
-                {user?.createTime
-                  ? new Date(user.createTime).toLocaleDateString("zh-CN", {
-                      year: "numeric",
-                      month: "2-digit",
-                      day: "2-digit",
-                    })
-                  : "—"}
-              </span>
             </div>
           </div>
         </div>

@@ -13,7 +13,6 @@ const KEY_BASE_URL = "third_party_newapi_base_url";
 const KEY_EMAIL_VERIFY_ENABLED = "third_party_newapi_email_verification_enabled";
 const KEY_MODEL_SYNC_ENABLED = "third_party_newapi_model_sync_enabled";
 const KEY_DISABLE_USER_MODEL_CONFIG = "third_party_newapi_disable_user_model_config";
-const KEY_SYSTEM_ACCESS_TOKEN = "third_party_newapi_system_access_token";
 const KEY_TOPUP_ENABLED = "third_party_newapi_topup_enabled";
 const DEFAULT_BASE_URL = "http://localhost:3001";
 
@@ -23,7 +22,6 @@ interface NewApiConfigs {
   emailVerificationEnabled: boolean;
   modelSyncEnabled: boolean;
   disableUserModelConfig: boolean;
-  systemAccessToken: string;
   topupEnabled: boolean;
 }
 
@@ -43,7 +41,6 @@ export default function ThirdPartySettingsPage() {
     emailVerificationEnabled: false,
     modelSyncEnabled: true,
     disableUserModelConfig: false,
-    systemAccessToken: "",
     topupEnabled: false,
   });
   const [original, setOriginal] = useState<NewApiConfigs>({
@@ -52,7 +49,6 @@ export default function ThirdPartySettingsPage() {
     emailVerificationEnabled: false,
     modelSyncEnabled: true,
     disableUserModelConfig: false,
-    systemAccessToken: "",
     topupEnabled: false,
   });
 
@@ -71,7 +67,6 @@ export default function ThirdPartySettingsPage() {
           emailVerificationEnabled: parseBoolean(map[KEY_EMAIL_VERIFY_ENABLED]),
           modelSyncEnabled: parseBoolean(map[KEY_MODEL_SYNC_ENABLED], true),
           disableUserModelConfig: parseBoolean(map[KEY_DISABLE_USER_MODEL_CONFIG]),
-          systemAccessToken: (map[KEY_SYSTEM_ACCESS_TOKEN] || "").trim(),
           topupEnabled: parseBoolean(map[KEY_TOPUP_ENABLED]),
         };
 
@@ -106,14 +101,12 @@ export default function ThirdPartySettingsPage() {
         [KEY_EMAIL_VERIFY_ENABLED]: String(configs.emailVerificationEnabled),
         [KEY_MODEL_SYNC_ENABLED]: String(configs.modelSyncEnabled),
         [KEY_DISABLE_USER_MODEL_CONFIG]: String(configs.disableUserModelConfig),
-        [KEY_SYSTEM_ACCESS_TOKEN]: configs.systemAccessToken.trim(),
         [KEY_TOPUP_ENABLED]: String(configs.topupEnabled),
       };
       await http.put("/api/system/config", nextConfigs);
       setOriginal({
         ...configs,
         baseUrl: configs.baseUrl.trim() || DEFAULT_BASE_URL,
-        systemAccessToken: configs.systemAccessToken.trim(),
       });
       if (!configs.baseUrl.trim()) {
         setConfigs((prev) => ({ ...prev, baseUrl: DEFAULT_BASE_URL }));
@@ -246,27 +239,6 @@ export default function ThirdPartySettingsPage() {
               </span>
             </span>
           </label>
-
-          <div className={cn("space-y-1.5", (!configs.enabled || !configs.modelSyncEnabled) && "opacity-60")}>
-            <label className="text-xs text-muted-foreground">系统访问信令牌</label>
-            <input
-              type="password"
-              value={configs.systemAccessToken}
-              disabled={!configs.enabled || !configs.modelSyncEnabled}
-              onChange={(e) => setConfigs((prev) => ({ ...prev, systemAccessToken: e.target.value }))}
-              placeholder="请输入 NewAPI 系统访问令牌"
-              className={cn(
-                "w-full px-4 py-2.5 rounded-xl text-sm",
-                "bg-muted/30 border border-border/30",
-                "focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20",
-                "placeholder:text-muted-foreground/40",
-                (!configs.enabled || !configs.modelSyncEnabled) && "cursor-not-allowed"
-              )}
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Token 可在「个人设置 - 安全设置 - 系统访问令牌」中生成。
-            </p>
-          </div>
 
           <div className="rounded-lg border border-border/20 bg-muted/10 p-3 text-xs text-muted-foreground leading-relaxed">
             普通用户启用后将走 NewAPI 注册/登录流程并同步本地账号；管理员账号始终优先使用本项目本地登录。

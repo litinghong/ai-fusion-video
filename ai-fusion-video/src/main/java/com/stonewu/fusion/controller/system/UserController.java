@@ -116,7 +116,7 @@ public class UserController {
     @Operation(summary = "重置用户密码")
     @PreAuthorize("hasRole('ADMIN')")
     public CommonResult<UserResetPasswordRespVO> resetPassword(@RequestParam("id") Long id) {
-        String temporaryPassword = userService.resetPassword(id);
+        String temporaryPassword = userService.resetPassword(id, requireCurrentUserId());
         return success(new UserResetPasswordRespVO(temporaryPassword));
     }
 

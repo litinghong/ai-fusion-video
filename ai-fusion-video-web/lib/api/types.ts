@@ -65,6 +65,9 @@ export interface ThirdPartyNewApiStatusResp {
   enabled: boolean;
   emailVerificationEnabled: boolean;
   userModelConfigDisabled: boolean;
+  passwordChangeDisabled: boolean;
+  thirdPartyAccountBound?: boolean;
+  passwordChangeDisableReason?: string | null;
 }
 
 export interface ThirdPartyVerificationReqVO {

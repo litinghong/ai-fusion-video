@@ -5,10 +5,6 @@ import {
   Loader2,
   Shield,
   User,
-  Lock,
-  Unlock,
-  KeyRound,
-  Trash2,
   Copy,
   Check,
   ArrowUp,
@@ -580,10 +576,11 @@ export default function UserSettingsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5 flex-wrap">
+                        <div className="flex items-center gap-x-3 gap-y-1 flex-wrap">
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="link"
+                            className="h-auto p-0 text-xs"
                             onClick={() => openRoleDialog(u)}
                             disabled={submitting}
                           >
@@ -591,37 +588,32 @@ export default function UserSettingsPage() {
                           </Button>
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="link"
+                            className="h-auto p-0 text-xs"
                             onClick={() => handleToggleLock(u)}
                             disabled={submitting || isSelf}
                             title={isSelf ? "不能锁定自己" : undefined}
                           >
-                            {u.status === 1 ? (
-                              <>
-                                <Lock className="h-3.5 w-3.5 mr-1" /> 锁定
-                              </>
-                            ) : (
-                              <>
-                                <Unlock className="h-3.5 w-3.5 mr-1" /> 解锁
-                              </>
-                            )}
+                            {u.status === 1 ? "锁定" : "解锁"}
                           </Button>
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="link"
+                            className="h-auto p-0 text-xs"
                             onClick={() => handleResetPassword(u)}
                             disabled={submitting}
                           >
-                            <KeyRound className="h-3.5 w-3.5 mr-1" /> 重置密码
+                            重置密码
                           </Button>
                           <Button
                             size="sm"
-                            variant="destructive"
+                            variant="link"
+                            className="h-auto p-0 text-xs text-destructive hover:text-destructive/80"
                             onClick={() => handleDeleteUser(u)}
                             disabled={submitting || isSelf}
                             title={isSelf ? "不能删除自己" : undefined}
                           >
-                            <Trash2 className="h-3.5 w-3.5 mr-1" /> 删除用户
+                            删除用户
                           </Button>
                         </div>
                       </td>
