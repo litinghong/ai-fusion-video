@@ -25,12 +25,10 @@ function LoginContent() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [initReady, setInitReady] = useState(false);
   const [thirdPartyEnabled, setThirdPartyEnabled] = useState(false);
-  const [desktopClientChecked, setDesktopClientChecked] = useState(false);
-  const [isDesktopClient, setIsDesktopClient] = useState(false);
+  const [showDesktopDownload, setShowDesktopDownload] = useState(false);
 
   useEffect(() => {
-    setIsDesktopClient(navigator.userAgent.includes("AI Fusion Video Desktop"));
-    setDesktopClientChecked(true);
+    setShowDesktopDownload(!navigator.userAgent.includes("AI Fusion Video Desktop"));
   }, []);
 
   // 检查系统初始化状态，未完成前不渲染登录表单
@@ -216,7 +214,7 @@ function LoginContent() {
           还没有账号？去注册
         </button>
 
-        {desktopClientChecked && !isDesktopClient && (
+        {showDesktopDownload && (
           <a
             href="https://ai-fusion.tos-cn-guangzhou.volces.com/desktop-app/ai-fusion-video-desktop.exe"
             download
