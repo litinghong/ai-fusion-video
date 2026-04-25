@@ -25,6 +25,13 @@ function LoginContent() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [initReady, setInitReady] = useState(false);
   const [thirdPartyEnabled, setThirdPartyEnabled] = useState(false);
+  const [desktopClientChecked, setDesktopClientChecked] = useState(false);
+  const [isDesktopClient, setIsDesktopClient] = useState(false);
+
+  useEffect(() => {
+    setIsDesktopClient(navigator.userAgent.includes("AI Fusion Video Desktop"));
+    setDesktopClientChecked(true);
+  }, []);
 
   // 检查系统初始化状态，未完成前不渲染登录表单
   useEffect(() => {
@@ -209,14 +216,16 @@ function LoginContent() {
           还没有账号？去注册
         </button>
 
-        <a
-          href="https://ai-fusion.tos-cn-guangzhou.volces.com/desktop-app/ai-fusion-video-desktop.exe"
-          download
-          className="flex w-full items-center justify-center gap-2 rounded-full border border-white/10 px-4 py-3 text-sm text-white/70 transition-colors hover:border-white/25 hover:bg-white/5 hover:text-white"
-        >
-          <Download className="size-4" aria-hidden="true" />
-          下载 Windows 桌面版
-        </a>
+        {desktopClientChecked && !isDesktopClient && (
+          <a
+            href="https://ai-fusion.tos-cn-guangzhou.volces.com/desktop-app/ai-fusion-video-desktop.exe"
+            download
+            className="flex w-full items-center justify-center gap-2 rounded-full border border-white/10 px-4 py-3 text-sm text-white/70 transition-colors hover:border-white/25 hover:bg-white/5 hover:text-white"
+          >
+            <Download className="size-4" aria-hidden="true" />
+            下载 Windows 桌面版
+          </a>
+        )}
       </form>
 
       {/* 底部信息 */}
