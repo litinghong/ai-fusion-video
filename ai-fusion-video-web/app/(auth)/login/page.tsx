@@ -25,10 +25,11 @@ function LoginContent() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [initReady, setInitReady] = useState(false);
   const [thirdPartyEnabled, setThirdPartyEnabled] = useState(false);
-  const [showDesktopDownload, setShowDesktopDownload] = useState(false);
+  const [showDesktopDownload, setShowDesktopDownload] = useState(true);
 
   useEffect(() => {
-    setShowDesktopDownload(!navigator.userAgent.includes("AI Fusion Video Desktop"));
+    const isDesktopClient = navigator.userAgent.startsWith("AI Fusion Video Desktop/");
+    setShowDesktopDownload(!isDesktopClient);
   }, []);
 
   // 检查系统初始化状态，未完成前不渲染登录表单
