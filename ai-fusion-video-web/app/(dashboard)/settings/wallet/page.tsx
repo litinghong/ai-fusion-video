@@ -164,7 +164,7 @@ function WalletOverviewCard({
   return (
     <motion.section
       variants={itemVariants}
-      className="min-h-[638px] overflow-hidden rounded-[16px] border border-[#e9e9ee] bg-white shadow-[0_2px_8px_rgba(17,24,39,0.03)]"
+      className="min-h-[638px] overflow-hidden rounded-[16px] border border-border/40 bg-card/95 text-card-foreground shadow-[0_2px_8px_rgba(17,24,39,0.03)] dark:shadow-[0_12px_30px_rgba(0,0,0,0.35)]"
     >
       <div className="flex h-[62px] items-center justify-between px-[10px]">
         <div className="flex items-center gap-3">
@@ -172,8 +172,8 @@ function WalletOverviewCard({
             <CreditCard className="h-[17px] w-[17px]" />
           </div>
           <div>
-            <h2 className="text-[14px] font-semibold leading-5 text-[#2d333b]">账户充值</h2>
-            <p className="text-[12px] leading-4 text-[#8a8f98]">多种充值方式，安全便捷</p>
+            <h2 className="text-[14px] font-semibold leading-5 text-foreground">账户充值</h2>
+            <p className="text-[12px] leading-4 text-muted-foreground">多种充值方式，安全便捷</p>
           </div>
         </div>
         <button
@@ -199,23 +199,23 @@ function WalletOverviewCard({
       </div>
 
       <div className="px-[10px] pb-[10px]">
-        <div className="rounded-b-[10px] border border-t-0 border-[#ececf0] px-[10px] pb-5 pt-[20px]">
+        <div className="rounded-b-[10px] border border-t-0 border-border/50 px-[10px] pb-5 pt-[20px]">
           <div className="mb-[10px] flex items-center gap-2">
             <AlipayMark />
-            <h3 className="text-[15px] font-semibold text-[#24292f]">支付宝充值</h3>
+            <h3 className="text-[15px] font-semibold text-foreground">支付宝充值</h3>
           </div>
 
           {amountsLoading ? (
-            <div className="flex h-[114px] items-center justify-center rounded-[14px] border border-[#ebebef] bg-[#fafafa] text-[14px] text-[#7a8088]">
+            <div className="flex h-[114px] items-center justify-center rounded-[14px] border border-border/50 bg-muted/35 text-[14px] text-muted-foreground">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               加载充值金额
             </div>
           ) : amountsError ? (
-            <div className="flex h-[114px] items-center justify-center rounded-[14px] border border-[#f0d4d4] bg-[#fff8f8] px-4 text-center text-[14px] text-[#b42318]">
+            <div className="flex h-[114px] items-center justify-center rounded-[14px] border border-destructive/30 bg-destructive/10 px-4 text-center text-[14px] text-destructive">
               {amountsError}
             </div>
           ) : rechargeOptions.length === 0 ? (
-            <div className="flex h-[114px] items-center justify-center rounded-[14px] border border-[#ebebef] bg-[#fafafa] text-[14px] text-[#7a8088]">
+            <div className="flex h-[114px] items-center justify-center rounded-[14px] border border-border/50 bg-muted/35 text-[14px] text-muted-foreground">
               暂无可用充值金额
             </div>
           ) : (
@@ -227,13 +227,13 @@ function WalletOverviewCard({
                     key={`${option.productId || "amount"}-${option.amount}`}
                     type="button"
                     onClick={() => onRecharge(option)}
-                    className="h-[114px] rounded-[14px] border border-[#ebebef] bg-white text-center transition hover:border-[#2b67f6]/45 hover:shadow-[0_10px_24px_rgba(37,99,235,0.10)]"
+                    className="h-[114px] rounded-[14px] border border-border/50 bg-card text-center transition hover:border-[#2b67f6]/45 hover:shadow-[0_10px_24px_rgba(37,99,235,0.10)]"
                   >
-                    <div className="text-[18px] font-semibold leading-6 text-[#54595f]">{amountText}</div>
-                    <div className="mt-[9px] text-[14px] text-[#5f666e]">
+                    <div className="text-[18px] font-semibold leading-6 text-foreground/85">{amountText}</div>
+                    <div className="mt-[9px] text-[14px] text-muted-foreground">
                       充值额度: {option.quota ?? amountText}
                     </div>
-                    <div className="mt-[11px] text-[18px] font-bold text-[#53585e]">¥{amountText}</div>
+                    <div className="mt-[11px] text-[18px] font-bold text-foreground/85">¥{amountText}</div>
                   </button>
                 );
               })}
@@ -241,13 +241,13 @@ function WalletOverviewCard({
           )}
         </div>
 
-        <div className="mt-[10px] overflow-hidden rounded-[12px] border border-[#ececf0] bg-white">
-          <div className="h-[40px] border-b border-[#ececf0] px-[10px] text-[14px] font-medium leading-[40px] text-[#787d84]">
+        <div className="mt-[10px] overflow-hidden rounded-[12px] border border-border/50 bg-card/70">
+          <div className="h-[40px] border-b border-border/50 px-[10px] text-[14px] font-medium leading-[40px] text-muted-foreground">
             兑换码充值
           </div>
           <div className="p-[10px]">
-            <div className="flex h-8 items-center rounded-[9px] bg-[#f5f5f6]">
-              <Gift className="ml-3 h-4 w-4 shrink-0 text-[#7f8389]" />
+            <div className="flex h-8 items-center rounded-[9px] bg-muted/55">
+              <Gift className="ml-3 h-4 w-4 shrink-0 text-muted-foreground" />
               <input
                 value={redeemCode}
                 disabled={redeeming || topupEnabled !== true}
@@ -257,7 +257,7 @@ function WalletOverviewCard({
                     onRedeem();
                   }
                 }}
-                className="min-w-0 flex-1 bg-transparent px-3 text-[13px] text-[#2d333b] outline-none placeholder:text-[#8b9097] disabled:cursor-not-allowed disabled:opacity-70"
+                className="min-w-0 flex-1 bg-transparent px-3 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/80 disabled:cursor-not-allowed disabled:opacity-70"
                 placeholder={
                   topupEnabled === null ? "加载兑换码状态" : topupEnabled ? "请输入兑换码" : "兑换码充值未开启"
                 }
@@ -300,15 +300,15 @@ function InviteRewardCard({ stats }: { stats: WalletStatsResp | null }) {
   return (
     <motion.section
       variants={itemVariants}
-      className="min-h-[638px] overflow-hidden rounded-[16px] border border-[#e9e9ee] bg-white shadow-[0_2px_8px_rgba(17,24,39,0.03)]"
+      className="min-h-[638px] overflow-hidden rounded-[16px] border border-border/40 bg-card/95 text-card-foreground shadow-[0_2px_8px_rgba(17,24,39,0.03)] dark:shadow-[0_12px_30px_rgba(0,0,0,0.35)]"
     >
       <div className="flex h-[62px] items-center px-[10px]">
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#63c767] text-white shadow-[0_6px_16px_rgba(99,199,103,0.32)]">
           <Gift className="h-[17px] w-[17px]" />
         </div>
         <div className="ml-3">
-          <h2 className="text-[14px] font-semibold leading-5 text-[#2d333b]">邀请奖励</h2>
-          <p className="text-[12px] leading-4 text-[#8a8f98]">邀请好友获得额外奖励</p>
+          <h2 className="text-[14px] font-semibold leading-5 text-foreground">邀请奖励</h2>
+          <p className="text-[12px] leading-4 text-muted-foreground">邀请好友获得额外奖励</p>
         </div>
       </div>
 
@@ -334,10 +334,10 @@ function InviteRewardCard({ stats }: { stats: WalletStatsResp | null }) {
         </div>
       </div>
 
-      <div className="mx-[10px] h-[43px] rounded-b-[10px] border border-t-0 border-[#ececf0] px-[10px] py-[10px]">
-        <div className="flex h-8 -translate-y-[1px] items-center rounded-[9px] bg-[#f5f5f6]">
-          <span className="px-3 text-[13px] text-[#7f8389]">邀请链接</span>
-          <span className="min-w-0 flex-1 truncate text-[14px] text-[#24292f]">{displayInviteUrl}</span>
+      <div className="mx-[10px] h-[43px] rounded-b-[10px] border border-t-0 border-border/50 px-[10px] py-[10px]">
+        <div className="flex h-8 -translate-y-[1px] items-center rounded-[9px] bg-muted/55">
+          <span className="px-3 text-[13px] text-muted-foreground">邀请链接</span>
+          <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">{displayInviteUrl}</span>
           <button
             type="button"
             disabled={!inviteUrl}
@@ -350,11 +350,11 @@ function InviteRewardCard({ stats }: { stats: WalletStatsResp | null }) {
         </div>
       </div>
 
-      <div className="mx-[10px] mt-[10px] overflow-hidden rounded-[11px] border border-[#ececf0]">
-        <div className="h-[36px] border-b border-[#ececf0] px-[10px] text-[13px] leading-[36px] text-[#7c8188]">
+      <div className="mx-[10px] mt-[10px] overflow-hidden rounded-[11px] border border-border/50 bg-card/70">
+        <div className="h-[36px] border-b border-border/50 px-[10px] text-[13px] leading-[36px] text-muted-foreground">
           奖励说明
         </div>
-        <ul className="space-y-[13px] px-[12px] py-[17px] text-[14px] text-[#7b8087]">
+        <ul className="space-y-[13px] px-[12px] py-[17px] text-[14px] text-muted-foreground">
           <li className="flex items-center gap-3">
             <span className="h-1.5 w-1.5 rounded-full bg-[#45b456]" />
             邀请好友注册，好友充值后您可获得相应奖励
