@@ -11,15 +11,21 @@ import okhttp3.Response;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.core.checksums.RequestChecksumCalculation;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -40,6 +46,8 @@ import java.util.concurrent.TimeUnit;
 @Component
 @Slf4j
 public class S3StorageStrategy implements StorageStrategy {
+
+    private static final byte[] TEST_DATA = "ai-fusion-video storage read write test".getBytes(StandardCharsets.UTF_8);
 
     private final OkHttpClient httpClient = new OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
@@ -89,6 +97,43 @@ public class S3StorageStrategy implements StorageStrategy {
         String accessUrl = buildAccessUrl(config, objectKey);
         log.info("[S3Storage] 文件已上传: key={}, size={} bytes, url={}", objectKey, data.length, accessUrl);
         return accessUrl;
+    }
+
+    @Override
+    public void testReadWrite(StorageConfig config) {
+        validateConfig(config);
+
+        String objectKey = buildObjectKey(config, "__storage_test__", "txt");
+        S3Client s3 = buildS3Client(config);
+
+        try {
+            PutObjectRequest putRequest = PutObjectRequest.builder()
+                    .bucket(config.getBucketName())
+                    .key(objectKey)
+                    .contentType("text/plain; charset=utf-8")
+                    .build();
+            s3.putObject(putRequest, RequestBody.fromBytes(TEST_DATA));
+
+            ResponseBytes<GetObjectResponse> responseBytes = s3.getObjectAsBytes(
+                    GetObjectRequest.builder()
+                            .bucket(config.getBucketName())
+                            .key(objectKey)
+                            .build());
+            if (!Arrays.equals(TEST_DATA, responseBytes.asByteArray())) {
+                throw new RuntimeException("S3 存储测试对象读回内容不一致");
+            }
+            log.info("[S3Storage] 读写权限测试通过: key={}", objectKey);
+        } finally {
+            try {
+                s3.deleteObject(DeleteObjectRequest.builder()
+                        .bucket(config.getBucketName())
+                        .key(objectKey)
+                        .build());
+            } catch (Exception e) {
+                log.warn("[S3Storage] 清理测试对象失败: key={}", objectKey, e);
+            }
+            s3.close();
+        }
     }
 
     private void uploadToS3(StorageConfig config, String objectKey, byte[] data, String contentType) {

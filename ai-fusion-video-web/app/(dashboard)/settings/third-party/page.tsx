@@ -14,6 +14,7 @@ const KEY_EMAIL_VERIFY_ENABLED = "third_party_newapi_email_verification_enabled"
 const KEY_MODEL_SYNC_ENABLED = "third_party_newapi_model_sync_enabled";
 const KEY_DISABLE_USER_MODEL_CONFIG = "third_party_newapi_disable_user_model_config";
 const KEY_SYSTEM_ACCESS_TOKEN = "third_party_newapi_system_access_token";
+const KEY_TOPUP_ENABLED = "third_party_newapi_topup_enabled";
 const DEFAULT_BASE_URL = "http://localhost:3001";
 
 interface NewApiConfigs {
@@ -23,6 +24,7 @@ interface NewApiConfigs {
   modelSyncEnabled: boolean;
   disableUserModelConfig: boolean;
   systemAccessToken: string;
+  topupEnabled: boolean;
 }
 
 function parseBoolean(value: string | undefined, defaultValue = false): boolean {
@@ -42,6 +44,7 @@ export default function ThirdPartySettingsPage() {
     modelSyncEnabled: true,
     disableUserModelConfig: false,
     systemAccessToken: "",
+    topupEnabled: false,
   });
   const [original, setOriginal] = useState<NewApiConfigs>({
     enabled: false,
@@ -50,6 +53,7 @@ export default function ThirdPartySettingsPage() {
     modelSyncEnabled: true,
     disableUserModelConfig: false,
     systemAccessToken: "",
+    topupEnabled: false,
   });
 
   useEffect(() => {
@@ -68,6 +72,7 @@ export default function ThirdPartySettingsPage() {
           modelSyncEnabled: parseBoolean(map[KEY_MODEL_SYNC_ENABLED], true),
           disableUserModelConfig: parseBoolean(map[KEY_DISABLE_USER_MODEL_CONFIG]),
           systemAccessToken: (map[KEY_SYSTEM_ACCESS_TOKEN] || "").trim(),
+          topupEnabled: parseBoolean(map[KEY_TOPUP_ENABLED]),
         };
 
         setConfigs(loaded);
@@ -102,6 +107,7 @@ export default function ThirdPartySettingsPage() {
         [KEY_MODEL_SYNC_ENABLED]: String(configs.modelSyncEnabled),
         [KEY_DISABLE_USER_MODEL_CONFIG]: String(configs.disableUserModelConfig),
         [KEY_SYSTEM_ACCESS_TOKEN]: configs.systemAccessToken.trim(),
+        [KEY_TOPUP_ENABLED]: String(configs.topupEnabled),
       };
       await http.put("/api/system/config", nextConfigs);
       setOriginal({
@@ -209,6 +215,19 @@ export default function ThirdPartySettingsPage() {
               className="h-4 w-4 rounded border-border/50"
             />
             <span>开启模型同步</span>
+          </label>
+
+          <label className={cn("flex items-center gap-3 text-sm", !configs.enabled && "opacity-60")}>
+            <input
+              type="checkbox"
+              checked={configs.topupEnabled}
+              disabled={!configs.enabled}
+              onChange={(e) =>
+                setConfigs((prev) => ({ ...prev, topupEnabled: e.target.checked }))
+              }
+              className="h-4 w-4 rounded border-border/50"
+            />
+            <span>开启兑换码充值</span>
           </label>
 
           <label className="flex items-start gap-3 text-sm">

@@ -80,4 +80,8 @@ export const storageConfigApi = {
   async setDefault(id: number): Promise<boolean> {
     return http.put("/storage/config/set-default", null, { params: { id } });
   },
+
+  async test(data: StorageConfigSaveReq): Promise<string> {
+    return http.post("/storage/config/test", data);
+  },
 };

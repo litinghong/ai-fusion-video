@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 存储配置服务
@@ -25,6 +27,17 @@ import java.util.List;
 public class StorageConfigService {
 
     private final StorageConfigMapper storageConfigMapper;
+    private final List<StorageStrategy> strategies;
+
+    private Map<String, StorageStrategy> strategyMap;
+
+    private Map<String, StorageStrategy> getStrategyMap() {
+        if (strategyMap == null) {
+            strategyMap = strategies.stream()
+                    .collect(Collectors.toMap(StorageStrategy::getType, s -> s));
+        }
+        return strategyMap;
+    }
 
     @Cacheable(value = "storageConfig", key = "#id")
     public StorageConfig getById(Long id) {
@@ -104,6 +117,29 @@ public class StorageConfigService {
         StorageConfig config = getById(id);
         config.setIsDefault(true);
         storageConfigMapper.updateById(config);
+    }
+
+    /**
+     * 测试配置是否具备基本读写权限，不会保存配置。
+     */
+    public void testReadWrite(StorageConfig config) {
+        String type = config.getType();
+        if (type == null || type.isBlank()) {
+            type = "local";
+            config.setType(type);
+        }
+
+        StorageStrategy strategy = getStrategyMap().get(type);
+        if (strategy == null) {
+            throw new BusinessException("不支持的存储类型: " + type);
+        }
+        try {
+            strategy.testReadWrite(config);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BusinessException("存储读写测试失败: " + e.getMessage());
+        }
     }
 
     /**

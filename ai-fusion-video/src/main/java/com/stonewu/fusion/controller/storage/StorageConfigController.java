@@ -33,20 +33,7 @@ public class StorageConfigController {
     @Operation(summary = "创建存储配置")
     @PreAuthorize("hasRole('ADMIN')")
     public CommonResult<Long> create(@Valid @RequestBody StorageConfigSaveReqVO reqVO) {
-        StorageConfig config = StorageConfig.builder()
-                .name(reqVO.getName())
-                .type(reqVO.getType())
-                .endpoint(reqVO.getEndpoint())
-                .bucketName(reqVO.getBucketName())
-                .accessKey(reqVO.getAccessKey())
-                .secretKey(reqVO.getSecretKey())
-                .region(reqVO.getRegion())
-                .basePath(reqVO.getBasePath())
-                .customDomain(reqVO.getCustomDomain())
-                .isDefault(reqVO.getIsDefault() != null ? reqVO.getIsDefault() : false)
-                .status(reqVO.getStatus() != null ? reqVO.getStatus() : 1)
-                .remark(reqVO.getRemark())
-                .build();
+        StorageConfig config = buildConfig(reqVO);
         return success(storageConfigService.create(config));
     }
 
@@ -99,5 +86,32 @@ public class StorageConfigController {
     public CommonResult<Boolean> setDefault(@RequestParam("id") Long id) {
         storageConfigService.setDefault(id);
         return success(true);
+    }
+
+    @PostMapping("/test")
+    @Operation(summary = "测试存储配置读写权限")
+    @PreAuthorize("hasRole('ADMIN')")
+    public CommonResult<String> test(@Valid @RequestBody StorageConfigSaveReqVO reqVO) {
+        StorageConfig config = buildConfig(reqVO);
+        storageConfigService.testReadWrite(config);
+        return success("存储读写权限测试通过");
+    }
+
+    private StorageConfig buildConfig(StorageConfigSaveReqVO reqVO) {
+        return StorageConfig.builder()
+                .id(reqVO.getId())
+                .name(reqVO.getName())
+                .type(reqVO.getType())
+                .endpoint(reqVO.getEndpoint())
+                .bucketName(reqVO.getBucketName())
+                .accessKey(reqVO.getAccessKey())
+                .secretKey(reqVO.getSecretKey())
+                .region(reqVO.getRegion())
+                .basePath(reqVO.getBasePath())
+                .customDomain(reqVO.getCustomDomain())
+                .isDefault(reqVO.getIsDefault() != null ? reqVO.getIsDefault() : false)
+                .status(reqVO.getStatus() != null ? reqVO.getStatus() : 1)
+                .remark(reqVO.getRemark())
+                .build();
     }
 }

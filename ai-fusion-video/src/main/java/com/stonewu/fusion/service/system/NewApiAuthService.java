@@ -7,18 +7,16 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.*;
-import okio.Buffer;
+import okhttp3.MediaType;
+import okhttp3.Request;
+import okhttp3.RequestBody;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * NewAPI 第三方账号认证服务
@@ -32,12 +30,7 @@ public class NewApiAuthService {
 
     private final ObjectMapper objectMapper;
     private final SystemConfigService systemConfigService;
-
-    private final OkHttpClient okHttpClient = new OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(20, TimeUnit.SECONDS)
-            .writeTimeout(20, TimeUnit.SECONDS)
-            .build();
+    private final NewApiHttpClient newApiHttpClient;
 
     public boolean isEnabled() {
         return systemConfigService.isThirdPartyNewApiEnabled();
@@ -98,9 +91,7 @@ public class NewApiAuthService {
                 urlBuilder.queryParam("turnstile", turnstile);
             }
 
-            Request request = new Request.Builder()
-                    .url(urlBuilder.build(true).toUriString())
-                    .header("Content-Type", "application/json")
+            Request request = newApiHttpClient.jsonRequest(urlBuilder.build(true).toUriString())
                     .post(RequestBody.create(objectMapper.writeValueAsString(bodyNode), JSON_MEDIA_TYPE))
                     .build();
 
@@ -121,17 +112,17 @@ public class NewApiAuthService {
                 urlBuilder.queryParam("turnstile", turnstile);
             }
 
-            Request request = new Request.Builder()
-                    .url(urlBuilder.build(true).toUriString())
-                    .header("Content-Type", "application/json")
+            Request request = newApiHttpClient.jsonRequest(urlBuilder.build(true).toUriString())
                     .post(RequestBody.create(objectMapper.writeValueAsString(bodyNode), JSON_MEDIA_TYPE))
                     .build();
 
-            logNewApiRequest(request, "NewAPI 登录");
-            try (Response response = okHttpClient.newCall(request).execute()) {
-                String body = response.body() != null ? response.body().string() : "";
-                logNewApiResponse("NewAPI 登录", request, response, body);
-                JsonNode root = parseBody(body, "NewAPI 登录");
+            NewApiHttpClient.NewApiResponse response = newApiHttpClient.execute(request, "NewAPI 登录");
+            try {
+                JsonNode root = parseBody(response.body(), "NewAPI 登录");
+                if (!response.isSuccessful()) {
+                    String message = firstText(root.path("data"), root.path("message"), root.path("msg"));
+                    throw new BusinessException(response.code(), StringUtils.hasText(message) ? message : "NewAPI 登录失败");
+                }
                 checkNewApiSuccess(root, "NewAPI 登录");
 
                 JsonNode dataNode = extractDataNode(root);
@@ -146,14 +137,14 @@ public class NewApiAuthService {
                     responseUsername = username;
                 }
 
-                String sessionValue = extractCookieValue(response.headers("Set-Cookie"), "session");
+                String sessionValue = extractCookieValue(response.headers().values("Set-Cookie"), "session");
                 if (!StringUtils.hasText(sessionValue)) {
                     throw new BusinessException(400, "NewAPI 登录成功但未返回 session Cookie");
                 }
 
                 String newApiUserHeader = firstNonBlank(
-                        response.header("New-Api-User"),
-                        response.header("new-api-user")
+                        response.headers().get("new-api-user"),
+                        response.headers().get("New-Api-User")
                 );
                 Long userId = asLongOrNull(userNode.path("id"));
                 if (userId == null) {
@@ -170,6 +161,8 @@ public class NewApiAuthService {
                         .sessionValue(sessionValue)
                         .newApiUserHeader(newApiUserHeader)
                         .build();
+            } catch (IOException e) {
+                throw new BusinessException(500, "NewAPI 登录响应解析失败");
             }
         } catch (IOException e) {
             log.error("NewAPI 登录调用失败", e);
@@ -178,18 +171,14 @@ public class NewApiAuthService {
     }
 
     public NewApiUserProfile getSelf(String token, String sessionValue, String newApiUserHeader) {
-        Request.Builder requestBuilder = new Request.Builder()
-                .url(buildBaseUrl("/api/user/self"))
+        Request.Builder requestBuilder = newApiHttpClient.userJsonRequest(
+                        "/api/user/self",
+                        newApiUserHeader,
+                        sessionValue)
                 .get();
 
         if (StringUtils.hasText(token)) {
             requestBuilder.header("Authorization", "Bearer " + token);
-        }
-        if (StringUtils.hasText(sessionValue)) {
-            requestBuilder.header("Cookie", "session=" + sessionValue);
-        }
-        if (StringUtils.hasText(newApiUserHeader)) {
-            requestBuilder.header("New-Api-User", newApiUserHeader);
         }
 
         JsonNode root = executeJson(requestBuilder.build(), "NewAPI 获取用户信息");
@@ -215,8 +204,7 @@ public class NewApiAuthService {
             urlBuilder.queryParam("turnstile", turnstile);
         }
 
-        Request request = new Request.Builder()
-                .url(urlBuilder.build(true).toUriString())
+        Request request = newApiHttpClient.request(urlBuilder.build(true).toUriString())
                 .get()
                 .build();
 
@@ -284,17 +272,7 @@ public class NewApiAuthService {
     }
 
     private JsonNode executeJson(Request request, String operation) {
-        logNewApiRequest(request, operation);
-        try (Response response = okHttpClient.newCall(request).execute()) {
-            String body = response.body() != null ? response.body().string() : "";
-            logNewApiResponse(operation, request, response, body);
-            JsonNode root = parseBody(body, operation);
-            checkNewApiSuccess(root, operation);
-            return root;
-        } catch (IOException e) {
-            log.error("{} 请求失败", operation, e);
-            throw new BusinessException(500, operation + "失败");
-        }
+        return newApiHttpClient.executeJson(request, operation);
     }
 
     private Request.Builder buildManagementRequestBuilder(String url, Long newApiUserId, String sessionValue) {
@@ -304,26 +282,7 @@ public class NewApiAuthService {
         if (!StringUtils.hasText(sessionValue)) {
             throw new BusinessException(400, "缺少 NewAPI 登录 session，无法调用令牌管理接口");
         }
-        return new Request.Builder()
-                .url(url)
-                .header("Content-Type", "application/json")
-                .header("New-Api-User", String.valueOf(newApiUserId))
-                .header("Cookie", buildSessionCookieHeader(sessionValue));
-    }
-
-    private String buildSessionCookieHeader(String sessionValue) {
-        String raw = sessionValue.trim();
-        if (raw.regionMatches(true, 0, "session=", 0, "session=".length())) {
-            raw = raw.substring("session=".length());
-        }
-        int semicolonIndex = raw.indexOf(';');
-        if (semicolonIndex >= 0) {
-            raw = raw.substring(0, semicolonIndex).trim();
-        }
-        if (!StringUtils.hasText(raw)) {
-            throw new BusinessException(400, "NewAPI session 无效");
-        }
-        return "session=" + raw;
+        return newApiHttpClient.userJsonRequest(url, newApiUserId, sessionValue);
     }
 
     private List<NewApiToken> parseTokenItems(JsonNode root) {
@@ -382,11 +341,7 @@ public class NewApiAuthService {
     }
 
     private String buildBaseUrl(String path) {
-        String baseUrl = systemConfigService.getThirdPartyNewApiBaseUrl();
-        if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
-            throw new BusinessException(500, "NewAPI 地址配置无效: " + baseUrl);
-        }
-        return baseUrl + path;
+        return newApiHttpClient.buildUrl(path);
     }
 
     private String extractCookieValue(List<String> setCookieValues, String cookieName) {
@@ -458,18 +413,16 @@ public class NewApiAuthService {
     }
 
     private Boolean fetchRemoteEmailVerificationEnabled() {
-        Request request = new Request.Builder()
-                .url(buildBaseUrl("/api/status"))
+        Request request = newApiHttpClient.request("/api/status")
                 .get()
                 .build();
 
-        logNewApiRequest(request, "NewAPI 状态探测");
-        try (Response response = okHttpClient.newCall(request).execute()) {
-            String body = response.body() != null ? response.body().string() : "";
-            logNewApiResponse("NewAPI 状态探测", request, response, body);
+        try {
+            NewApiHttpClient.NewApiResponse response = newApiHttpClient.execute(request, "NewAPI 状态探测");
             if (!response.isSuccessful()) {
                 return null;
             }
+            String body = response.body();
             if (!StringUtils.hasText(body)) {
                 return null;
             }
@@ -487,112 +440,6 @@ public class NewApiAuthService {
             log.warn("探测 NewAPI 邮箱认证状态失败: {}", e.getMessage());
             return null;
         }
-    }
-
-    private void logNewApiRequest(Request request, String operation) {
-        if (request == null) {
-            return;
-        }
-        Map<String, String> headers = new LinkedHashMap<>();
-        Headers requestHeaders = request.headers();
-        for (int i = 0; i < requestHeaders.size(); i++) {
-            String name = requestHeaders.name(i);
-            String value = requestHeaders.value(i);
-            headers.put(name, maskSensitiveHeader(name, value));
-        }
-        String requestBody = extractRequestBody(request);
-        log.info("[NewAPI][REQ] op={}, method={}, url={}, headers={}, body={}",
-                operation,
-                request.method(),
-                request.url(),
-                headers,
-                requestBody);
-    }
-
-    private void logNewApiResponse(String operation, Request request, Response response, String body) {
-        if (response == null) {
-            return;
-        }
-        Map<String, String> headers = new LinkedHashMap<>();
-        Headers responseHeaders = response.headers();
-        for (int i = 0; i < responseHeaders.size(); i++) {
-            String name = responseHeaders.name(i);
-            String value = responseHeaders.value(i);
-            headers.put(name, maskSensitiveHeader(name, value));
-        }
-        log.info("[NewAPI][RESP] op={}, method={}, url={}, status={}, headers={}, body={}",
-                operation,
-                request != null ? request.method() : null,
-                request != null ? request.url() : null,
-                response.code(),
-                headers,
-                body);
-    }
-
-    private String extractRequestBody(Request request) {
-        if (request == null || request.body() == null) {
-            return "";
-        }
-        try {
-            Buffer buffer = new Buffer();
-            request.body().writeTo(buffer);
-            return buffer.readUtf8();
-        } catch (Exception ex) {
-            return "<unavailable:" + ex.getClass().getSimpleName() + ">";
-        }
-    }
-
-    private String maskSensitiveHeader(String name, String value) {
-        if (!StringUtils.hasText(value)) {
-            return value;
-        }
-        String normalizedName = name == null ? "" : name.trim().toLowerCase();
-        if ("authorization".equals(normalizedName)) {
-            return maskTokenValue(value);
-        }
-        if ("cookie".equals(normalizedName) || "set-cookie".equals(normalizedName)) {
-            return maskCookieValue(value);
-        }
-        return value;
-    }
-
-    private String maskTokenValue(String raw) {
-        String text = raw.trim();
-        int firstBlank = text.indexOf(' ');
-        if (firstBlank <= 0 || firstBlank >= text.length() - 1) {
-            return maskKeepEnds(text, 8, 4);
-        }
-        String prefix = text.substring(0, firstBlank);
-        String token = text.substring(firstBlank + 1);
-        return prefix + " " + maskKeepEnds(token, 8, 4);
-    }
-
-    private String maskCookieValue(String raw) {
-        String[] parts = raw.split(";");
-        StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < parts.length; i++) {
-            String part = parts[i].trim();
-            if (part.regionMatches(true, 0, "session=", 0, "session=".length())) {
-                String session = part.substring("session=".length());
-                part = "session=" + maskKeepEnds(session, 8, 4);
-            }
-            if (i > 0) {
-                builder.append("; ");
-            }
-            builder.append(part);
-        }
-        return builder.toString();
-    }
-
-    private String maskKeepEnds(String value, int keepStart, int keepEnd) {
-        if (!StringUtils.hasText(value)) {
-            return value;
-        }
-        String trimmed = value.trim();
-        if (trimmed.length() <= keepStart + keepEnd) {
-            return "***";
-        }
-        return trimmed.substring(0, keepStart) + "****" + trimmed.substring(trimmed.length() - keepEnd);
     }
 
     private Boolean firstBoolean(JsonNode... nodes) {

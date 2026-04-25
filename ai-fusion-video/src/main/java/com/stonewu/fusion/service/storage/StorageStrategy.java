@@ -34,4 +34,11 @@ public interface StorageStrategy {
      * @return 持久化后的可访问 URL
      */
     String storeBytes(byte[] data, String subDir, String extension, StorageConfig config);
+
+    /**
+     * 测试当前配置是否具备基本读写权限。
+     *
+     * @param config 存储配置
+     */
+    void testReadWrite(StorageConfig config);
 }

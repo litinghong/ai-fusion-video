@@ -30,6 +30,8 @@ public class SystemConfigService {
             "third_party_newapi_disable_user_model_config";
     public static final String KEY_THIRD_PARTY_NEWAPI_SYSTEM_ACCESS_TOKEN =
             "third_party_newapi_system_access_token";
+    public static final String KEY_THIRD_PARTY_NEWAPI_TOPUP_ENABLED =
+            "third_party_newapi_topup_enabled";
     public static final String DEFAULT_THIRD_PARTY_NEWAPI_BASE_URL = "http://localhost:3001";
 
     private final SystemConfigMapper systemConfigMapper;
@@ -142,6 +144,10 @@ public class SystemConfigService {
     public String getThirdPartyNewApiSystemAccessToken() {
         String value = getValue(KEY_THIRD_PARTY_NEWAPI_SYSTEM_ACCESS_TOKEN);
         return StrUtil.isBlank(value) ? null : value.trim();
+    }
+
+    public boolean isThirdPartyNewApiTopupEnabled() {
+        return parseBoolean(getValue(KEY_THIRD_PARTY_NEWAPI_TOPUP_ENABLED), false);
     }
 
     private boolean parseBoolean(String value, boolean defaultValue) {

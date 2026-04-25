@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   BarChart3,
   Copy,
@@ -24,19 +24,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { walletApi, type AlipayReferenceAmount } from "@/lib/api/wallet";
+import { walletApi, type AlipayReferenceAmount, type TopupBill, type WalletStatsResp } from "@/lib/api/wallet";
 import { containerVariants, itemVariants } from "../_shared";
 
-const billRows = [
-  { id: "ali_40062b794e11e52bda6f5f1522ebd7eefba77b72", quota: 2000, amount: "¥2000.00", status: "pending", time: "2026-04-21 23:32:35" },
-  { id: "ali_8053447c8e250c1aab0fbc415a14f11ab2da3e02", quota: 200, amount: "¥200.00", status: "success", time: "2026-04-20 09:44:40" },
-  { id: "ali_47837d96b2ae04946c0b450ee05c86469361896f", quota: 50, amount: "¥50.00", status: "pending", time: "2026-04-20 09:11:18" },
-  { id: "ali_1ead13b1644d91ab6c7aa4beb9f249ff7d321f9e", quota: 200, amount: "¥200.00", status: "pending", time: "2026-04-20 09:10:20" },
-  { id: "ali_9b6c6e1876f2974c08f07532cd3af0a0721f2480", quota: 200, amount: "¥200.00", status: "pending", time: "2026-04-20 09:10:12" },
-  { id: "ali_d5aa65e41abebebf8aa821edb179f0ace100e444", quota: 100, amount: "¥100.00", status: "pending", time: "2026-04-20 09:07:08" },
-  { id: "ali_ef085a891d96e6d768292bc0aa3336ec232e66d8", quota: 2000, amount: "¥2000.00", status: "success", time: "2026-04-20 08:54:00" },
-  { id: "ali_fb1a85ee8e3c5876b53eca5173aef31569f10eda", quota: 2000, amount: "¥2000.00", status: "success", time: "2026-04-20 03:03:10" },
-];
+const DEFAULT_QUOTA_PER_UNIT = 500000;
+const DEFAULT_QUOTA_DISPLAY_TYPE = "USD";
+const BILL_PAGE_SIZE = 10;
 
 function SmokeLayer({ tone }: { tone: "blue" | "teal" }) {
   const palette =
@@ -101,18 +94,72 @@ function formatAmountText(amount: string | null | undefined) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2);
 }
 
+function getStoredQuotaPerUnit() {
+  if (typeof window === "undefined") return DEFAULT_QUOTA_PER_UNIT;
+  const stored = Number(window.localStorage.getItem("quota_per_unit"));
+  return Number.isFinite(stored) && stored > 0 ? stored : DEFAULT_QUOTA_PER_UNIT;
+}
+
+function getStoredQuotaDisplayType() {
+  if (typeof window === "undefined") return DEFAULT_QUOTA_DISPLAY_TYPE;
+  return window.localStorage.getItem("quota_display_type") || DEFAULT_QUOTA_DISPLAY_TYPE;
+}
+
+function persistQuotaDisplayConfig(stats: WalletStatsResp) {
+  if (typeof window === "undefined") return;
+  const quotaPerUnit = Number(stats.quotaPerUnit);
+  window.localStorage.setItem(
+    "quota_per_unit",
+    String(Number.isFinite(quotaPerUnit) && quotaPerUnit > 0 ? quotaPerUnit : DEFAULT_QUOTA_PER_UNIT)
+  );
+  window.localStorage.setItem("quota_display_type", stats.quotaDisplayType || DEFAULT_QUOTA_DISPLAY_TYPE);
+}
+
+function renderQuota(quota: number | null | undefined) {
+  if (quota === null || quota === undefined) return "--";
+  const numericQuota = Number(quota);
+  if (!Number.isFinite(numericQuota)) return "--";
+
+  const displayType = getStoredQuotaDisplayType().toLowerCase();
+  if (displayType === "quota") {
+    return String(Math.round(numericQuota));
+  }
+
+  const amount = numericQuota / getStoredQuotaPerUnit();
+  const symbol = displayType === "cny" || displayType === "rmb" ? "¥" : "$";
+  return `${symbol}${amount.toFixed(2)}`;
+}
+
+function renderRequestCount(count: number | null | undefined) {
+  if (count === null || count === undefined) return "--";
+  const value = Number(count);
+  return Number.isFinite(value) ? String(Math.round(value)) : "--";
+}
+
 function WalletOverviewCard({
   onOpenBill,
+  stats,
   rechargeOptions,
   amountsLoading,
   amountsError,
   onRecharge,
+  redeemCode,
+  redeeming,
+  topupEnabled,
+  onRedeemCodeChange,
+  onRedeem,
 }: {
   onOpenBill: () => void;
+  stats: WalletStatsResp | null;
   rechargeOptions: AlipayReferenceAmount[];
   amountsLoading: boolean;
   amountsError: string | null;
   onRecharge: (option: AlipayReferenceAmount) => void;
+  redeemCode: string;
+  redeeming: boolean;
+  topupEnabled: boolean | null;
+  onRedeemCodeChange: (value: string) => void;
+  onRedeem: () => void;
 }) {
   return (
     <motion.section
@@ -144,9 +191,9 @@ function WalletOverviewCard({
         <div className="relative z-10 px-4 pt-[17px] text-white">
           <h3 className="text-[17px] font-semibold">账户统计</h3>
           <div className="mt-[21px] grid grid-cols-3">
-            <StatItem value="¥1421.95" label="当前余额" icon={<Wallet className="h-3.5 w-3.5" />} />
-            <StatItem value="¥1988.36" label="历史消耗" icon={<Zap className="h-3.5 w-3.5" />} />
-            <StatItem value="5396" label="请求次数" icon={<BarChart3 className="h-3.5 w-3.5" />} />
+            <StatItem value={renderQuota(stats?.quota)} label="当前余额" icon={<Wallet className="h-3.5 w-3.5" />} />
+            <StatItem value={renderQuota(stats?.usedQuota)} label="历史消耗" icon={<Zap className="h-3.5 w-3.5" />} />
+            <StatItem value={renderRequestCount(stats?.requestCount)} label="请求次数" icon={<BarChart3 className="h-3.5 w-3.5" />} />
           </div>
         </div>
       </div>
@@ -202,13 +249,26 @@ function WalletOverviewCard({
             <div className="flex h-8 items-center rounded-[9px] bg-[#f5f5f6]">
               <Gift className="ml-3 h-4 w-4 shrink-0 text-[#7f8389]" />
               <input
-                className="min-w-0 flex-1 bg-transparent px-3 text-[13px] text-[#2d333b] outline-none placeholder:text-[#8b9097]"
-                placeholder="请输入兑换码"
+                value={redeemCode}
+                disabled={redeeming || topupEnabled !== true}
+                onChange={(e) => onRedeemCodeChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    onRedeem();
+                  }
+                }}
+                className="min-w-0 flex-1 bg-transparent px-3 text-[13px] text-[#2d333b] outline-none placeholder:text-[#8b9097] disabled:cursor-not-allowed disabled:opacity-70"
+                placeholder={
+                  topupEnabled === null ? "加载兑换码状态" : topupEnabled ? "请输入兑换码" : "兑换码充值未开启"
+                }
               />
               <button
                 type="button"
-                className="mr-0 h-8 rounded-[10px] bg-[#2864f6] px-[13px] text-[14px] font-semibold text-white transition hover:bg-[#1f59e9]"
+                disabled={redeeming || topupEnabled !== true || !redeemCode.trim()}
+                onClick={onRedeem}
+                className="mr-0 inline-flex h-8 items-center rounded-[10px] bg-[#2864f6] px-[13px] text-[14px] font-semibold text-white transition hover:bg-[#1f59e9] disabled:cursor-not-allowed disabled:opacity-70"
               >
+                {redeeming && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                 兑换额度
               </button>
             </div>
@@ -219,8 +279,23 @@ function WalletOverviewCard({
   );
 }
 
-function InviteRewardCard() {
-  const inviteUrl = "https://aigateways.cn/register?aff=qFWN";
+function InviteRewardCard({ stats }: { stats: WalletStatsResp | null }) {
+  const inviteUrl = stats?.inviteUrl;
+  const displayInviteUrl = inviteUrl || "--";
+
+  const handleCopyInviteUrl = async () => {
+    if (!inviteUrl) {
+      toast.error("暂无可复制的邀请链接");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      toast.success("邀请链接已复制到剪切板");
+    } catch {
+      toast.error("复制邀请链接失败");
+    }
+  };
 
   return (
     <motion.section
@@ -252,9 +327,9 @@ function InviteRewardCard() {
             </button>
           </div>
           <div className="mt-[21px] grid grid-cols-3">
-            <StatItem value="¥0.00" label="待使用收益" icon={<Zap className="h-3.5 w-3.5" />} />
-            <StatItem value="¥0.00" label="总收益" icon={<BarChart3 className="h-3.5 w-3.5" />} />
-            <StatItem value="0" label="邀请人数" icon={<Users className="h-3.5 w-3.5" />} />
+            <StatItem value={renderQuota(stats?.affQuota)} label="待使用收益" icon={<Zap className="h-3.5 w-3.5" />} />
+            <StatItem value={renderQuota(stats?.affHistoryQuota)} label="总收益" icon={<BarChart3 className="h-3.5 w-3.5" />} />
+            <StatItem value={renderRequestCount(stats?.affCount)} label="邀请人数" icon={<Users className="h-3.5 w-3.5" />} />
           </div>
         </div>
       </div>
@@ -262,11 +337,12 @@ function InviteRewardCard() {
       <div className="mx-[10px] h-[43px] rounded-b-[10px] border border-t-0 border-[#ececf0] px-[10px] py-[10px]">
         <div className="flex h-8 -translate-y-[1px] items-center rounded-[9px] bg-[#f5f5f6]">
           <span className="px-3 text-[13px] text-[#7f8389]">邀请链接</span>
-          <span className="min-w-0 flex-1 truncate text-[14px] text-[#24292f]">{inviteUrl}</span>
+          <span className="min-w-0 flex-1 truncate text-[14px] text-[#24292f]">{displayInviteUrl}</span>
           <button
             type="button"
-            onClick={() => navigator.clipboard?.writeText(inviteUrl)}
-            className="mr-0 inline-flex h-8 items-center gap-2 rounded-[10px] bg-[#2864f6] px-[14px] text-[14px] font-semibold text-white transition hover:bg-[#1f59e9]"
+            disabled={!inviteUrl}
+            onClick={handleCopyInviteUrl}
+            className="mr-0 inline-flex h-8 items-center gap-2 rounded-[10px] bg-[#2864f6] px-[14px] text-[14px] font-semibold text-white transition hover:bg-[#1f59e9] disabled:cursor-not-allowed disabled:opacity-70"
           >
             <Copy className="h-4 w-4" />
             复制
@@ -297,23 +373,104 @@ function InviteRewardCard() {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const success = status === "success";
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  alipay: "支付宝",
+  wxpay: "微信",
+  stripe: "Stripe",
+  creem: "Creem",
+  waffo: "Waffo",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  success: "成功",
+  pending: "待支付",
+  failed: "失败",
+  expired: "已过期",
+};
+
+function formatBillMoney(money: number | null | undefined) {
+  if (money === null || money === undefined) return "--";
+  const value = Number(money);
+  return Number.isFinite(value) ? `¥${value.toFixed(2)}` : "--";
+}
+
+function formatBillTime(timestamp: number | null | undefined) {
+  if (!timestamp) return "--";
+  const date = new Date(timestamp * 1000);
+  if (Number.isNaN(date.getTime())) return "--";
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function StatusBadge({ status }: { status: string | null | undefined }) {
+  const normalized = status || "";
+  const success = normalized === "success";
+  const danger = normalized === "failed" || normalized === "expired";
 
   return (
     <div className="flex items-center gap-2 text-[#20262d]">
-      <span className={cn("h-1.5 w-1.5 rounded-full", success ? "bg-[#3db34a]" : "bg-[#f08a00]")} />
-      <span className="leading-[18px]">{success ? "成功" : "待支付"}</span>
+      <span
+        className={cn(
+          "h-1.5 w-1.5 rounded-full",
+          success ? "bg-[#3db34a]" : danger ? "bg-[#e5484d]" : "bg-[#f08a00]"
+        )}
+      />
+      <span className="leading-[18px]">{STATUS_LABELS[normalized] || normalized || "--"}</span>
     </div>
   );
 }
 
 function BillDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const rows = useMemo(() => billRows, []);
+  const [rows, setRows] = useState<TopupBill[]>([]);
+  const [total, setTotal] = useState(0);
+  const [pageNo, setPageNo] = useState(1);
+  const [keyword, setKeyword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const totalPages = Math.max(1, Math.ceil(total / BILL_PAGE_SIZE));
+
+  useEffect(() => {
+    if (!open) return;
+    let ignore = false;
+
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await walletApi.getTopupBills({
+          pageNo,
+          pageSize: BILL_PAGE_SIZE,
+          keyword: keyword.trim() || undefined,
+        });
+        if (ignore) return;
+        setRows(data.list || []);
+        setTotal(data.total || 0);
+      } catch (err) {
+        if (ignore) return;
+        setRows([]);
+        setTotal(0);
+        setError(err instanceof Error ? err.message : "加载充值账单失败");
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      ignore = true;
+    };
+  }, [open, pageNo, keyword]);
+
+  const copyTradeNo = (tradeNo: string | null | undefined) => {
+    if (!tradeNo) return;
+    navigator.clipboard?.writeText(tradeNo);
+    toast.success("订单号已复制");
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] w-[920px] max-w-[calc(100vw-32px)] gap-0 overflow-hidden rounded-[10px] border border-[#6d6d6d] bg-white p-0 text-[#24292f] shadow-[0_18px_56px_rgba(0,0,0,0.30)]">
+      <DialogContent className="max-h-[92vh] w-[920px] max-w-[calc(100vw-32px)] gap-0 overflow-hidden rounded-[10px] border border-[#6d6d6d] bg-white p-0 text-[#24292f] shadow-[0_18px_56px_rgba(0,0,0,0.30)] sm:max-w-[920px]">
         <DialogHeader className="gap-0 px-[26px] pb-0 pt-[26px]">
           <DialogTitle className="text-[18px] font-semibold leading-6 text-[#20242a]">充值账单</DialogTitle>
         </DialogHeader>
@@ -322,62 +479,105 @@ function BillDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open
           <div className="flex h-8 items-center rounded-[8px] bg-[#f5f5f6]">
             <Search className="ml-[10px] h-4 w-4 text-[#747980]" />
             <input
+              value={keyword}
+              onChange={(e) => {
+                setKeyword(e.target.value);
+                setPageNo(1);
+              }}
               className="w-full bg-transparent px-3 text-[13px] outline-none placeholder:text-[#777d85]"
               placeholder="订单号"
             />
           </div>
         </div>
 
-        <div className="mt-[19px] max-h-[calc(92vh-134px)] overflow-auto px-[26px] pb-6">
-          <table className="w-full table-fixed border-collapse text-[14px]">
-            <thead>
-              <tr className="border-b border-[#e7e9ed] text-left text-[#777c83]">
-                <th className="w-[45%] px-4 pb-[15px] font-semibold">订单号</th>
-                <th className="w-[6%] px-4 pb-[15px] font-semibold">支付方式</th>
-                <th className="w-[10%] px-4 pb-[15px] font-semibold">充值额度</th>
-                <th className="w-[11%] px-4 pb-[15px] font-semibold">支付金额</th>
-                <th className="w-[7%] px-4 pb-[15px] font-semibold">状态</th>
-                <th className="w-[10%] px-4 pb-[15px] font-semibold">操作</th>
-                <th className="w-[11%] px-4 pb-[15px] font-semibold">创建时间</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id} className="border-b border-[#edf0f2]">
-                  <td className="px-4 py-[12px]">
-                    <div className="flex items-center gap-2">
-                      <span className="break-all leading-5">{row.id}</span>
-                      <Copy className="h-4 w-4 shrink-0 text-[#2864f6]" />
-                    </div>
-                  </td>
-                  <td className="px-4 py-[12px] leading-5">支付宝</td>
-                  <td className="px-4 py-[12px]">
-                    <div className="flex items-center gap-1.5">
-                      <Link2 className="h-4 w-4 text-[#20262d]" />
-                      {row.quota}
-                    </div>
-                  </td>
-                  <td className="px-4 py-[12px] text-[#ff2d25]">{row.amount}</td>
-                  <td className="px-4 py-[12px]">
-                    <StatusBadge status={row.status} />
-                  </td>
-                  <td className="px-4 py-[12px]">
-                    {row.status === "pending" ? (
-                      <button
-                        type="button"
-                        className="h-[27px] rounded-full border border-[#edf0f2] px-3 text-[14px] font-semibold text-[#2864f6] transition hover:border-[#2864f6]/40"
-                      >
-                        补单
-                      </button>
-                    ) : (
-                      <span className="text-[#9aa0a6]"> </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-[12px] leading-5">{row.time}</td>
+        <div className="mt-[19px] max-h-[calc(92vh-190px)] overflow-auto px-[26px]">
+          {error ? (
+            <div className="flex h-[180px] items-center justify-center rounded-[10px] border border-[#f0d4d4] bg-[#fff8f8] px-4 text-center text-[14px] text-[#b42318]">
+              {error}
+            </div>
+          ) : loading && rows.length === 0 ? (
+            <div className="flex h-[180px] items-center justify-center text-[14px] text-[#7a8088]">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              加载充值账单
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="flex h-[180px] items-center justify-center text-[14px] text-[#7a8088]">
+              暂无充值记录
+            </div>
+          ) : (
+            <table className="w-full table-fixed border-collapse text-[14px]">
+              <thead>
+                <tr className="border-b border-[#e7e9ed] text-left text-[#777c83]">
+                  <th className="w-[38%] px-4 pb-[15px] font-semibold">订单号</th>
+                  <th className="w-[12%] px-4 pb-[15px] font-semibold">支付方式</th>
+                  <th className="w-[12%] px-4 pb-[15px] font-semibold">充值额度</th>
+                  <th className="w-[12%] px-4 pb-[15px] font-semibold">支付金额</th>
+                  <th className="w-[10%] px-4 pb-[15px] font-semibold">状态</th>
+                  <th className="w-[16%] px-4 pb-[15px] font-semibold">创建时间</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className={cn(loading && "opacity-60")}>
+                {rows.map((row) => (
+                  <tr key={row.id || row.tradeNo} className="border-b border-[#edf0f2]">
+                    <td className="px-4 py-[12px]">
+                      <div className="flex items-center gap-2">
+                        <span className="break-all leading-5">{row.tradeNo || "--"}</span>
+                        {row.tradeNo && (
+                          <button
+                            type="button"
+                            onClick={() => copyTradeNo(row.tradeNo)}
+                            className="shrink-0 text-[#2864f6]"
+                            aria-label="复制订单号"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-[12px] leading-5">
+                      {row.paymentMethod ? PAYMENT_METHOD_LABELS[row.paymentMethod] || row.paymentMethod : "--"}
+                    </td>
+                    <td className="px-4 py-[12px]">
+                      <div className="flex items-center gap-1.5">
+                        <Link2 className="h-4 w-4 text-[#20262d]" />
+                        {row.amount ?? "--"}
+                      </div>
+                    </td>
+                    <td className="px-4 py-[12px] text-[#ff2d25]">{formatBillMoney(row.money)}</td>
+                    <td className="px-4 py-[12px]">
+                      <StatusBadge status={row.status} />
+                    </td>
+                    <td className="px-4 py-[12px] leading-5">{formatBillTime(row.createTime)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between px-[26px] pb-6 pt-4 text-[13px] text-[#6c727a]">
+          <span>共 {total} 条</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={loading || pageNo <= 1}
+              onClick={() => setPageNo((current) => Math.max(1, current - 1))}
+              className="h-8 rounded-[8px] border border-[#e7e9ed] px-3 font-medium text-[#3f4650] transition hover:border-[#2864f6]/40 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              上一页
+            </button>
+            <span className="min-w-[62px] text-center">
+              {pageNo} / {totalPages}
+            </span>
+            <button
+              type="button"
+              disabled={loading || pageNo >= totalPages}
+              onClick={() => setPageNo((current) => Math.min(totalPages, current + 1))}
+              className="h-8 rounded-[8px] border border-[#e7e9ed] px-3 font-medium text-[#3f4650] transition hover:border-[#2864f6]/40 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              下一页
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -446,6 +646,37 @@ export default function WalletSettingsPage() {
   const [selectedOption, setSelectedOption] = useState<AlipayReferenceAmount | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [redeemCode, setRedeemCode] = useState("");
+  const [redeeming, setRedeeming] = useState(false);
+  const [topupEnabled, setTopupEnabled] = useState<boolean | null>(null);
+  const [stats, setStats] = useState<WalletStatsResp | null>(null);
+
+  const fetchStats = useCallback(async () => {
+    const data = await walletApi.getStats();
+    persistQuotaDisplayConfig(data);
+    setStats(data);
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    (async () => {
+      try {
+        const data = await walletApi.getStats();
+        if (ignore) return;
+        persistQuotaDisplayConfig(data);
+        setStats(data);
+      } catch {
+        if (!ignore) {
+          setStats(null);
+        }
+      }
+    })();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   useEffect(() => {
     let ignore = false;
@@ -464,6 +695,27 @@ export default function WalletSettingsPage() {
       } finally {
         if (!ignore) {
           setAmountsLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    (async () => {
+      try {
+        const data = await walletApi.getCapabilities();
+        if (!ignore) {
+          setTopupEnabled(Boolean(data.topupEnabled));
+        }
+      } catch {
+        if (!ignore) {
+          setTopupEnabled(false);
         }
       }
     })();
@@ -503,6 +755,29 @@ export default function WalletSettingsPage() {
     }
   };
 
+  const handleRedeem = async () => {
+    const key = redeemCode.trim();
+    if (!key || redeeming) return;
+    if (topupEnabled !== true) {
+      toast.error("兑换码充值未开启");
+      return;
+    }
+
+    setRedeeming(true);
+    try {
+      const data = await walletApi.topup(key);
+      setRedeemCode("");
+      toast.success(data.message || "兑换码充值成功");
+      void fetchStats().catch(() => {
+        setStats(null);
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "兑换码充值失败");
+    } finally {
+      setRedeeming(false);
+    }
+  };
+
   return (
     <>
       <motion.div
@@ -514,12 +789,18 @@ export default function WalletSettingsPage() {
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <WalletOverviewCard
             onOpenBill={() => setBillOpen(true)}
+            stats={stats}
             rechargeOptions={rechargeOptions}
             amountsLoading={amountsLoading}
             amountsError={amountsError}
             onRecharge={handleRecharge}
+            redeemCode={redeemCode}
+            redeeming={redeeming}
+            topupEnabled={topupEnabled}
+            onRedeemCodeChange={setRedeemCode}
+            onRedeem={handleRedeem}
           />
-          <InviteRewardCard />
+          <InviteRewardCard stats={stats} />
         </div>
       </motion.div>
 

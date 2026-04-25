@@ -29,6 +29,7 @@ public class LocalStorageStrategy implements StorageStrategy {
 
     private static final String DEFAULT_BASE_PATH = "./data/media";
     private static final String URL_PREFIX = "/media";
+    private static final byte[] TEST_DATA = "ai-fusion-video storage read write test".getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
     private final OkHttpClient httpClient = new OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
@@ -87,6 +88,35 @@ public class LocalStorageStrategy implements StorageStrategy {
             return URL_PREFIX + "/" + subDir + "/" + filename;
         } catch (IOException e) {
             throw new RuntimeException("本地存储文件失败: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void testReadWrite(StorageConfig config) {
+        String basePath = resolveBasePath(config);
+        Path target = null;
+
+        try {
+            Path dir = Paths.get(basePath, "__storage_test__");
+            Files.createDirectories(dir);
+            target = dir.resolve(IdUtil.fastSimpleUUID() + ".txt");
+
+            Files.write(target, TEST_DATA);
+            byte[] readData = Files.readAllBytes(target);
+            if (!java.util.Arrays.equals(TEST_DATA, readData)) {
+                throw new RuntimeException("本地存储测试文件读回内容不一致");
+            }
+            log.info("[LocalStorage] 读写权限测试通过: {}", target);
+        } catch (IOException e) {
+            throw new RuntimeException("本地存储读写权限测试失败: " + e.getMessage(), e);
+        } finally {
+            if (target != null) {
+                try {
+                    Files.deleteIfExists(target);
+                } catch (IOException e) {
+                    log.warn("[LocalStorage] 清理测试文件失败: {}", target, e);
+                }
+            }
         }
     }
 

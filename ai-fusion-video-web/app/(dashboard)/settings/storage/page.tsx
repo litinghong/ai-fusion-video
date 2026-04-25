@@ -10,8 +10,10 @@ import {
   EyeOff,
   Star,
   HardDrive,
+  TestTube2,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   storageConfigApi,
@@ -77,6 +79,7 @@ interface StorageConfigDialogProps {
 
 function StorageConfigDialog({ open, onOpenChange, editingConfig, onSaved }: StorageConfigDialogProps) {
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [form, setForm] = useState<StorageConfigSaveReq>({ name: "", type: "local" });
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
 
@@ -101,6 +104,7 @@ function StorageConfigDialog({ open, onOpenChange, editingConfig, onSaved }: Sto
       } else {
         setForm({ name: "", type: "local", basePath: "./data/media", status: 1 });
       }
+      setTesting(false);
       setShowSecrets({});
     }
   }, [open, editingConfig]);
@@ -128,6 +132,26 @@ function StorageConfigDialog({ open, onOpenChange, editingConfig, onSaved }: Sto
   };
 
   const fields = getStorageTypeFields(form.type || "local");
+  const canTest = fields.every(field => {
+    if (!field.required) return true;
+    const value = (form as unknown as Record<string, string>)[field.key];
+    return Boolean(value?.trim());
+  });
+
+  const handleTest = async () => {
+    setTesting(true);
+    try {
+      const message = await storageConfigApi.test({
+        ...form,
+        type: form.type || "local",
+      });
+      toast.success(message || "存储读写权限测试通过");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "存储读写权限测试失败");
+    } finally {
+      setTesting(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -217,14 +241,31 @@ function StorageConfigDialog({ open, onOpenChange, editingConfig, onSaved }: Sto
           </div>
         </div>
 
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" size="sm" />}>
-            取消
-          </DialogClose>
-          <Button size="sm" onClick={handleSave} disabled={saving || !form.name.trim()}>
-            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
-            {editingConfig ? "保存" : "创建"}
+        <DialogFooter className="sm:justify-between">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleTest}
+            disabled={testing || saving || !canTest}
+            className="w-full sm:w-auto"
+          >
+            {testing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+            ) : (
+              <TestTube2 className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            {testing ? "测试中" : "测试"}
           </Button>
+          <div className="flex w-full justify-end gap-2 sm:w-auto">
+            <DialogClose render={<Button variant="outline" size="sm" />}>
+              取消
+            </DialogClose>
+            <Button size="sm" onClick={handleSave} disabled={saving || !form.name.trim()}>
+              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
+              {editingConfig ? "保存" : "创建"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
