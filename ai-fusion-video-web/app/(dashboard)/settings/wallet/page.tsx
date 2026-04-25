@@ -1,13 +1,14 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
   Copy,
   CreditCard,
   Gift,
   Link2,
+  Loader2,
   ReceiptText,
   Search,
   Users,
@@ -15,6 +16,7 @@ import {
   Zap,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -22,9 +24,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { walletApi, type AlipayReferenceAmount } from "@/lib/api/wallet";
 import { containerVariants, itemVariants } from "../_shared";
-
-const rechargeOptions = [50, 100, 200, 500, 1000, 2000];
 
 const billRows = [
   { id: "ali_40062b794e11e52bda6f5f1522ebd7eefba77b72", quota: 2000, amount: "¥2000.00", status: "pending", time: "2026-04-21 23:32:35" },
@@ -93,7 +94,26 @@ function AlipayMark() {
   );
 }
 
-function WalletOverviewCard({ onOpenBill }: { onOpenBill: () => void }) {
+function formatAmountText(amount: string | null | undefined) {
+  if (!amount) return "--";
+  const value = Number(amount);
+  if (!Number.isFinite(value)) return amount;
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
+function WalletOverviewCard({
+  onOpenBill,
+  rechargeOptions,
+  amountsLoading,
+  amountsError,
+  onRecharge,
+}: {
+  onOpenBill: () => void;
+  rechargeOptions: AlipayReferenceAmount[];
+  amountsLoading: boolean;
+  amountsError: string | null;
+  onRecharge: (option: AlipayReferenceAmount) => void;
+}) {
   return (
     <motion.section
       variants={itemVariants}
@@ -138,19 +158,40 @@ function WalletOverviewCard({ onOpenBill }: { onOpenBill: () => void }) {
             <h3 className="text-[15px] font-semibold text-[#24292f]">支付宝充值</h3>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {rechargeOptions.map((amount) => (
-              <button
-                key={amount}
-                type="button"
-                className="h-[114px] rounded-[14px] border border-[#ebebef] bg-white text-center transition hover:border-[#2b67f6]/45 hover:shadow-[0_10px_24px_rgba(37,99,235,0.10)]"
-              >
-                <div className="text-[18px] font-semibold leading-6 text-[#54595f]">{amount}</div>
-                <div className="mt-[9px] text-[14px] text-[#5f666e]">充值额度: {amount}</div>
-                <div className="mt-[11px] text-[18px] font-bold text-[#53585e]">¥{amount}</div>
-              </button>
-            ))}
-          </div>
+          {amountsLoading ? (
+            <div className="flex h-[114px] items-center justify-center rounded-[14px] border border-[#ebebef] bg-[#fafafa] text-[14px] text-[#7a8088]">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              加载充值金额
+            </div>
+          ) : amountsError ? (
+            <div className="flex h-[114px] items-center justify-center rounded-[14px] border border-[#f0d4d4] bg-[#fff8f8] px-4 text-center text-[14px] text-[#b42318]">
+              {amountsError}
+            </div>
+          ) : rechargeOptions.length === 0 ? (
+            <div className="flex h-[114px] items-center justify-center rounded-[14px] border border-[#ebebef] bg-[#fafafa] text-[14px] text-[#7a8088]">
+              暂无可用充值金额
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {rechargeOptions.map((option) => {
+                const amountText = formatAmountText(option.amount);
+                return (
+                  <button
+                    key={`${option.productId || "amount"}-${option.amount}`}
+                    type="button"
+                    onClick={() => onRecharge(option)}
+                    className="h-[114px] rounded-[14px] border border-[#ebebef] bg-white text-center transition hover:border-[#2b67f6]/45 hover:shadow-[0_10px_24px_rgba(37,99,235,0.10)]"
+                  >
+                    <div className="text-[18px] font-semibold leading-6 text-[#54595f]">{amountText}</div>
+                    <div className="mt-[9px] text-[14px] text-[#5f666e]">
+                      充值额度: {option.quota ?? amountText}
+                    </div>
+                    <div className="mt-[11px] text-[18px] font-bold text-[#53585e]">¥{amountText}</div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="mt-[10px] overflow-hidden rounded-[12px] border border-[#ececf0] bg-white">
@@ -343,8 +384,124 @@ function BillDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open
   );
 }
 
+function AlipayConfirmDialog({
+  open,
+  option,
+  submitting,
+  onOpenChange,
+  onConfirm,
+}: {
+  open: boolean;
+  option: AlipayReferenceAmount | null;
+  submitting: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+}) {
+  const amountText = formatAmountText(option?.amount);
+  const productName = option?.name || amountText;
+
+  return (
+    <Dialog open={open} onOpenChange={(nextOpen) => !submitting && onOpenChange(nextOpen)}>
+      <DialogContent className="w-[448px] max-w-[calc(100vw-32px)] gap-0 rounded-[10px] border border-[#6d6d6d] bg-white p-0 text-[#20242a] shadow-[0_18px_56px_rgba(0,0,0,0.30)]">
+        <DialogHeader className="gap-0 px-6 pb-0 pt-6">
+          <DialogTitle className="text-[18px] font-semibold leading-6">支付宝充值确认</DialogTitle>
+        </DialogHeader>
+
+        <div className="px-6 pb-10 pt-6 text-[14px] leading-[18px] text-[#2f343a]">
+          <div>产品名称： {productName}</div>
+          <div>价格： ¥{amountText}</div>
+          <div>充值额度： {option?.quota ?? amountText}</div>
+          <div>是否确认充值?</div>
+        </div>
+
+        <div className="flex justify-end gap-3 px-6 pb-6">
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={() => onOpenChange(false)}
+            className="h-8 rounded-[10px] bg-[#f5f6f8] px-4 text-[14px] font-semibold text-[#5f666e] transition hover:bg-[#ebeef2] disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={onConfirm}
+            className="inline-flex h-8 items-center rounded-[10px] bg-[#2864f6] px-4 text-[14px] font-semibold text-white transition hover:bg-[#1f59e9] disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {submitting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+            确定
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function WalletSettingsPage() {
   const [billOpen, setBillOpen] = useState(false);
+  const [amountsLoading, setAmountsLoading] = useState(true);
+  const [amountsError, setAmountsError] = useState<string | null>(null);
+  const [rechargeOptions, setRechargeOptions] = useState<AlipayReferenceAmount[]>([]);
+  const [selectedOption, setSelectedOption] = useState<AlipayReferenceAmount | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [paying, setPaying] = useState(false);
+
+  useEffect(() => {
+    let ignore = false;
+
+    (async () => {
+      setAmountsLoading(true);
+      setAmountsError(null);
+      try {
+        const data = await walletApi.getAlipayAmounts();
+        if (ignore) return;
+        setRechargeOptions(data.referenceAmounts || []);
+      } catch (err) {
+        if (ignore) return;
+        const message = err instanceof Error ? err.message : "加载充值金额失败";
+        setAmountsError(message);
+      } finally {
+        if (!ignore) {
+          setAmountsLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const handleRecharge = (option: AlipayReferenceAmount) => {
+    setSelectedOption(option);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmPay = async () => {
+    if (!selectedOption?.amount) return;
+
+    const payWindow = window.open("about:blank", "_blank");
+    setPaying(true);
+    try {
+      const data = await walletApi.createAlipayPayUrl(selectedOption.amount, selectedOption.productId);
+      if (!data.checkoutUrl) {
+        throw new Error("未获取到支付宝充值链接");
+      }
+      if (payWindow) {
+        payWindow.location.href = data.checkoutUrl;
+      } else {
+        window.open(data.checkoutUrl, "_blank");
+      }
+      setConfirmOpen(false);
+      toast.success("支付宝充值链接已打开");
+    } catch (err) {
+      payWindow?.close();
+      toast.error(err instanceof Error ? err.message : "创建支付宝充值链接失败");
+    } finally {
+      setPaying(false);
+    }
+  };
 
   return (
     <>
@@ -355,12 +512,25 @@ export default function WalletSettingsPage() {
         className="w-full max-w-[1264px]"
       >
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <WalletOverviewCard onOpenBill={() => setBillOpen(true)} />
+          <WalletOverviewCard
+            onOpenBill={() => setBillOpen(true)}
+            rechargeOptions={rechargeOptions}
+            amountsLoading={amountsLoading}
+            amountsError={amountsError}
+            onRecharge={handleRecharge}
+          />
           <InviteRewardCard />
         </div>
       </motion.div>
 
       <BillDialog open={billOpen} onOpenChange={setBillOpen} />
+      <AlipayConfirmDialog
+        open={confirmOpen}
+        option={selectedOption}
+        submitting={paying}
+        onOpenChange={setConfirmOpen}
+        onConfirm={handleConfirmPay}
+      />
     </>
   );
 }
