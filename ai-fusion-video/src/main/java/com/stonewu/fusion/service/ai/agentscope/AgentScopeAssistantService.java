@@ -125,7 +125,7 @@ public class AgentScopeAssistantService {
 
         try {
             // 1. 获取 AgentScope Model
-            Model model = getAgentScopeModel(reqVO.getModelId());
+            Model model = getAgentScopeModel(reqVO.getModelId(), userId);
 
             // 2. 获取系统提示词
             String systemPrompt = getSystemPrompt(reqVO);
@@ -548,15 +548,15 @@ public class AgentScopeAssistantService {
 
     // ========== 私有方法 ==========
 
-    private Model getAgentScopeModel(Long modelId) {
+    private Model getAgentScopeModel(Long modelId, Long userId) {
         AiModel aiModel;
         if (modelId != null) {
-            aiModel = aiModelService.getById(modelId);
+            aiModel = aiModelService.getByIdForUser(modelId, userId);
             if (aiModel == null) {
                 throw new BusinessException("AI 模型不存在: " + modelId);
             }
         } else {
-            aiModel = aiModelService.getDefaultByType(1);
+            aiModel = aiModelService.getDefaultByTypeForUser(userId, 1);
             if (aiModel == null) {
                 throw new BusinessException("未配置默认对话模型");
             }

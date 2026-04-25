@@ -16,5 +16,6 @@ public class UserRespVO {
     private String phone;
     private Integer status;
     private LocalDateTime createTime;
+    private LocalDateTime lastLoginTime;
     private List<String> roles;
 }

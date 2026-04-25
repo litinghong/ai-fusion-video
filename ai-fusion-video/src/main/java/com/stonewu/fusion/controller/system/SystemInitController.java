@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 import static com.stonewu.fusion.common.CommonResult.success;
@@ -67,6 +68,7 @@ public class SystemInitController {
                 .password(passwordEncoder.encode(reqVO.getPassword()))
                 .nickname(reqVO.getNickname() != null ? reqVO.getNickname() : reqVO.getUsername())
                 .status(1)
+                .lastLoginTime(LocalDateTime.now())
                 .build();
         userMapper.insert(user);
 

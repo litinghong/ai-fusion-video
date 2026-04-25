@@ -67,6 +67,7 @@ export default function SetupPage() {
           phone: null,
           status: 1,
           createTime: "",
+          lastLoginTime: null,
           roles: ["admin"],
         },
       });

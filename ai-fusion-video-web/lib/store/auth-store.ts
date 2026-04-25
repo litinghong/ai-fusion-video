@@ -14,7 +14,7 @@ interface AuthState {
   isAuthenticated: () => boolean;
 
   // Actions
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string, turnstile?: string) => Promise<void>;
   logout: () => Promise<void>;
   fetchUserInfo: () => Promise<void>;
   setTokens: (accessToken: string, refreshToken: string) => void;
@@ -31,8 +31,8 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: () => !!get().token,
 
       // 登录
-      login: async (username: string, password: string) => {
-        const resp = await authApi.login({ username, password });
+      login: async (username: string, password: string, turnstile?: string) => {
+        const resp = await authApi.login({ username, password, turnstile });
         set({
           token: resp.accessToken,
           refreshToken: resp.refreshToken,
@@ -45,6 +45,7 @@ export const useAuthStore = create<AuthState>()(
             phone: null,
             status: 0,
             createTime: "",
+            lastLoginTime: null,
             roles: [],
           },
         });

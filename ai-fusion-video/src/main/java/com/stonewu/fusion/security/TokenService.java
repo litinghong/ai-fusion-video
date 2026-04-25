@@ -115,9 +115,8 @@ public class TokenService {
             return null;
         }
 
-        String[] parts = value.split(":", 2);
-        Long userId = Long.parseLong(parts[0]);
-        String username = parts.length > 1 ? parts[1] : null;
+        Long userId = parseUserId(value);
+        String username = parseUsername(value);
 
         // 删除旧的 access_token
         String oldAccessToken = redisTemplate.opsForValue().get(USER_TOKEN_PREFIX + userId);
@@ -162,6 +161,17 @@ public class TokenService {
     }
 
     /**
+     * 根据 refresh_token 获取用户ID（用于刷新前的权限/状态校验）
+     */
+    public Long getUserIdFromRefreshToken(String refreshToken) {
+        String value = redisTemplate.opsForValue().get(REFRESH_TOKEN_PREFIX + refreshToken);
+        if (value == null) {
+            return null;
+        }
+        return parseUserId(value);
+    }
+
+    /**
      * 根据 access_token 获取用户ID
      */
     public Long getUserIdFromToken(String token) {
@@ -169,7 +179,7 @@ public class TokenService {
         if (value == null) {
             return null;
         }
-        return Long.parseLong(value.split(":")[0]);
+        return parseUserId(value);
     }
 
     /**
@@ -180,8 +190,7 @@ public class TokenService {
         if (value == null) {
             return null;
         }
-        String[] parts = value.split(":", 2);
-        return parts.length > 1 ? parts[1] : null;
+        return parseUsername(value);
     }
 
     /**
@@ -210,6 +219,30 @@ public class TokenService {
         if (userId != null) {
             redisTemplate.delete(USER_TOKEN_PREFIX + userId);
         }
+    }
+
+    /**
+     * 按用户撤销令牌（用于锁定用户后强制下线）
+     */
+    public void revokeUserTokens(Long userId) {
+        if (userId == null) {
+            return;
+        }
+        String accessToken = redisTemplate.opsForValue().get(USER_TOKEN_PREFIX + userId);
+        if (accessToken == null) {
+            redisTemplate.delete(USER_TOKEN_PREFIX + userId);
+            return;
+        }
+        removeToken(accessToken);
+    }
+
+    private Long parseUserId(String tokenValue) {
+        return Long.parseLong(tokenValue.split(":", 2)[0]);
+    }
+
+    private String parseUsername(String tokenValue) {
+        String[] parts = tokenValue.split(":", 2);
+        return parts.length > 1 ? parts[1] : null;
     }
 
     private String generateUUID() {

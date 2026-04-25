@@ -7,6 +7,7 @@ import cn.hutool.json.JSONUtil;
 import com.stonewu.fusion.entity.ai.AiModel;
 import com.stonewu.fusion.entity.generation.VideoItem;
 import com.stonewu.fusion.entity.generation.VideoTask;
+import com.stonewu.fusion.security.SecurityUtils;
 import com.stonewu.fusion.service.ai.AiModelService;
 import com.stonewu.fusion.service.ai.ToolExecutionContext;
 import com.stonewu.fusion.service.ai.ToolExecutor;
@@ -80,7 +81,8 @@ public class GenerateVideoToolExecutor implements ToolExecutor {
 
     @Override
     public String getParametersSchema() {
-            AiModel model = resolvePreferredModelOrNull();
+            Long currentUserId = SecurityUtils.getCurrentUserId();
+            AiModel model = resolvePreferredModelOrNull(currentUserId);
             GenerationModelCapabilityService.VideoModelCapability capability = model != null
                 ? generationModelCapabilityService.resolveVideoCapability(model)
                 : null;
@@ -181,7 +183,7 @@ public class GenerateVideoToolExecutor implements ToolExecutor {
             // 确定生成模式
             String generateMode = StrUtil.isNotBlank(firstFrameImageUrl) ? "image2video" : "text2video";
 
-            AiModel model = resolvePreferredModel();
+            AiModel model = resolvePreferredModel(context.getUserId());
 
             // 构建生视频任务
             VideoTask task = VideoTask.builder()
@@ -244,28 +246,33 @@ public class GenerateVideoToolExecutor implements ToolExecutor {
     /**
      * 获取默认视频生成模型的 ID
      */
-    private AiModel resolvePreferredModel() {
-        AiModel defaultModel = aiModelService.getDefaultByType(MODEL_TYPE_VIDEO);
+    private AiModel resolvePreferredModel(Long userId) {
+        AiModel defaultModel = userId != null
+                ? aiModelService.getDefaultByTypeForUser(userId, MODEL_TYPE_VIDEO)
+                : aiModelService.getDefaultByType(MODEL_TYPE_VIDEO);
         if (defaultModel != null) {
             return defaultModel;
         }
-        List<AiModel> videoModels = aiModelService.getListByType(MODEL_TYPE_VIDEO);
+        List<AiModel> videoModels = userId != null
+                ? aiModelService.getListByTypeForUser(userId, MODEL_TYPE_VIDEO)
+                : aiModelService.getListByType(MODEL_TYPE_VIDEO);
         if (!videoModels.isEmpty()) {
             return videoModels.get(0);
         }
         throw new IllegalStateException("未配置可用的视频生成模型");
     }
 
-    private AiModel resolvePreferredModelOrNull() {
+    private AiModel resolvePreferredModelOrNull(Long userId) {
         try {
-            return resolvePreferredModel();
+            return resolvePreferredModel(userId);
         } catch (Exception ignored) {
             return null;
         }
     }
 
     private String describeCurrentModelCapability() {
-        AiModel model = resolvePreferredModelOrNull();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        AiModel model = resolvePreferredModelOrNull(currentUserId);
         return generationModelCapabilityService.describeVideoCapability(model);
     }
 

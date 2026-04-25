@@ -6,6 +6,7 @@ import cn.hutool.json.JSONUtil;
 import com.stonewu.fusion.entity.ai.AiModel;
 import com.stonewu.fusion.entity.generation.ImageItem;
 import com.stonewu.fusion.entity.generation.ImageTask;
+import com.stonewu.fusion.security.SecurityUtils;
 import com.stonewu.fusion.service.ai.AiModelService;
 import com.stonewu.fusion.service.ai.ToolExecutionContext;
 import com.stonewu.fusion.service.ai.ToolExecutor;
@@ -74,7 +75,8 @@ public class GenerateImageToolExecutor implements ToolExecutor {
 
     @Override
     public String getParametersSchema() {
-            AiModel model = resolvePreferredModelOrNull();
+            Long currentUserId = SecurityUtils.getCurrentUserId();
+            AiModel model = resolvePreferredModelOrNull(currentUserId);
             GenerationModelCapabilityService.ImageModelCapability capability = model != null
                 ? generationModelCapabilityService.resolveImageCapability(model)
                 : null;
@@ -134,7 +136,7 @@ public class GenerateImageToolExecutor implements ToolExecutor {
                 }
             }
 
-                AiModel model = resolvePreferredModel();
+                AiModel model = resolvePreferredModel(context.getUserId());
 
             // 构建生图任务
             ImageTask task = ImageTask.builder()
@@ -187,28 +189,33 @@ public class GenerateImageToolExecutor implements ToolExecutor {
     /**
      * 获取默认图片生成模型的 ID
      */
-    private AiModel resolvePreferredModel() {
-        AiModel defaultModel = aiModelService.getDefaultByType(MODEL_TYPE_IMAGE);
+    private AiModel resolvePreferredModel(Long userId) {
+        AiModel defaultModel = userId != null
+                ? aiModelService.getDefaultByTypeForUser(userId, MODEL_TYPE_IMAGE)
+                : aiModelService.getDefaultByType(MODEL_TYPE_IMAGE);
         if (defaultModel != null) {
             return defaultModel;
         }
-        List<AiModel> imageModels = aiModelService.getListByType(MODEL_TYPE_IMAGE);
+        List<AiModel> imageModels = userId != null
+                ? aiModelService.getListByTypeForUser(userId, MODEL_TYPE_IMAGE)
+                : aiModelService.getListByType(MODEL_TYPE_IMAGE);
         if (!imageModels.isEmpty()) {
             return imageModels.get(0);
         }
         throw new IllegalStateException("未配置可用的图片生成模型");
     }
 
-    private AiModel resolvePreferredModelOrNull() {
+    private AiModel resolvePreferredModelOrNull(Long userId) {
         try {
-            return resolvePreferredModel();
+            return resolvePreferredModel(userId);
         } catch (Exception ignored) {
             return null;
         }
     }
 
     private String describeCurrentModelCapability() {
-        AiModel model = resolvePreferredModelOrNull();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        AiModel model = resolvePreferredModelOrNull(currentUserId);
         return generationModelCapabilityService.describeImageCapability(model);
     }
 

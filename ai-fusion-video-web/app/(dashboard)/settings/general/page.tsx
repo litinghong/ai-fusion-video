@@ -1,19 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Globe, Save, Loader2, ArrowLeft, AlertTriangle } from "lucide-react";
+import { Globe, Save, Loader2, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useRouter } from "next/navigation";
 import { http } from "@/lib/api/client";
 import { containerVariants, itemVariants } from "../_shared";
+import { useAdminGuard } from "../_admin-guard";
 
 interface SystemConfigs {
   site_base_url: string;
 }
 
 export default function GeneralSettingsPage() {
-  const router = useRouter();
+  const { checking, isAdmin } = useAdminGuard();
   const [configs, setConfigs] = useState<SystemConfigs>({ site_base_url: "" });
   const [original, setOriginal] = useState<SystemConfigs>({ site_base_url: "" });
   const [loading, setLoading] = useState(true);
@@ -39,6 +39,14 @@ export default function GeneralSettingsPage() {
   }, []);
 
   const hasChanges = configs.site_base_url !== original.site_base_url;
+
+  if (checking || !isAdmin) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   const handleSave = async () => {
     setSaving(true);

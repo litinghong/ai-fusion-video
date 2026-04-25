@@ -42,7 +42,7 @@ public class GoogleFlowReverseApiVideoStrategy implements VideoGenerationStrateg
         validateUnsupportedInputs(task);
 
         AiModel model = resolveModel(task);
-        ApiConfig apiConfig = resolveApiConfig(model);
+        ApiConfig apiConfig = resolveApiConfig(model, task.getUserId());
         GoogleFlowReverseApiSupport.ResolvedVideoRequest request = GoogleFlowReverseApiSupport.resolveVideoRequest(model, task);
         List<String> imageUrls = buildInputImages(task);
         List<VideoItem> items = videoGenerationService.listItems(task.getId());
@@ -111,18 +111,24 @@ public class GoogleFlowReverseApiVideoStrategy implements VideoGenerationStrateg
         if (task.getModelId() == null) {
             throw new BusinessException("GoogleFlowReverseApi 视频任务缺少 modelId");
         }
-        AiModel model = aiModelService.getById(task.getModelId());
+        if (task.getUserId() == null) {
+            throw new BusinessException("GoogleFlowReverseApi 视频任务缺少 userId");
+        }
+        AiModel model = aiModelService.getByIdForUser(task.getModelId(), task.getUserId());
         if (model == null || StrUtil.isBlank(model.getCode())) {
             throw new BusinessException("GoogleFlowReverseApi 视频模型不存在或未配置 code");
         }
         return model;
     }
 
-    private ApiConfig resolveApiConfig(AiModel model) {
+    private ApiConfig resolveApiConfig(AiModel model, Long userId) {
         if (model.getApiConfigId() == null) {
             throw new BusinessException("GoogleFlowReverseApi 视频模型缺少 apiConfigId");
         }
-        ApiConfig apiConfig = apiConfigService.getById(model.getApiConfigId());
+        if (userId == null) {
+            throw new BusinessException("GoogleFlowReverseApi 视频任务缺少 userId");
+        }
+        ApiConfig apiConfig = apiConfigService.getByIdForUser(model.getApiConfigId(), userId);
         if (apiConfig == null) {
             throw new BusinessException("GoogleFlowReverseApi API 配置不存在");
         }

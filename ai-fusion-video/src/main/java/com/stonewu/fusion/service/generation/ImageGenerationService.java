@@ -42,6 +42,12 @@ public class ImageGenerationService {
         return task;
     }
 
+    public ImageTask getByTaskIdForUser(String taskId, Long userId) {
+        ImageTask task = getByTaskId(taskId);
+        assertTaskOwner(task, userId);
+        return task;
+    }
+
     public PageResult<ImageTask> pageByUser(Long userId, int pageNo, int pageSize) {
         return PageResult.of(taskMapper.selectPage(new Page<>(pageNo, pageSize),
                 new LambdaQueryWrapper<ImageTask>()
@@ -85,6 +91,12 @@ public class ImageGenerationService {
         return itemMapper.selectList(new LambdaQueryWrapper<ImageItem>().eq(ImageItem::getTaskId, taskId));
     }
 
+    public List<ImageItem> listItemsForUser(Long taskId, Long userId) {
+        ImageTask task = getById(taskId);
+        assertTaskOwner(task, userId);
+        return listItems(taskId);
+    }
+
     @CacheEvict(value = "imageItems", allEntries = true)
     @Transactional
     public ImageItem createItem(ImageItem item) {
@@ -101,5 +113,11 @@ public class ImageGenerationService {
 
     public List<ImageTask> findPendingTasks() {
         return taskMapper.selectList(new LambdaQueryWrapper<ImageTask>().in(ImageTask::getStatus, 0, 1));
+    }
+
+    private void assertTaskOwner(ImageTask task, Long userId) {
+        if (task == null || !task.getUserId().equals(userId)) {
+            throw new BusinessException(404, "生图任务不存在");
+        }
     }
 }

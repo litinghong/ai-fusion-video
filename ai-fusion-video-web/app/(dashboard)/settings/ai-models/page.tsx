@@ -151,7 +151,7 @@ function ApiConfigDialog({ open, onOpenChange, editingConfig, onSaved }: ApiConf
               value={form.platform || "openai_compatible"}
               onValueChange={v => {
                 updateField("platform", v as string);
-                if (v === "openai_compatible") {
+                if (v === "openai_compatible" || v === "newapi") {
                   updateField("autoAppendV1Path", true);
                 }
               }}
@@ -216,7 +216,7 @@ function ApiConfigDialog({ open, onOpenChange, editingConfig, onSaved }: ApiConf
             </div>
           ))}
 
-          {form.platform === "openai_compatible" && (
+          {(form.platform === "openai_compatible" || form.platform === "newapi") && (
             <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2.5">
               <div className="flex items-center gap-3">
                 <button
@@ -344,6 +344,7 @@ const COMMON_TIERS = ["1K", "2K", "3K", "4K"];
 
 const OPENAI_REASONING_PLATFORMS = new Set([
   "openai_compatible",
+  "newapi",
   "openai",
   "deepseek",
   "zhipu",

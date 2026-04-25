@@ -14,5 +14,15 @@ public class RegisterReqVO {
     @NotBlank(message = "密码不能为空")
     @Size(min = 6, max = 32, message = "密码长度为 6-32 位")
     private String password;
+
     private String nickname;
+
+    @Schema(description = "邮箱（第三方注册启用时使用）")
+    private String email;
+
+    @Schema(description = "邮箱验证码（开启邮箱认证时必填）")
+    private String emailCode;
+
+    @Schema(description = "可选的 turnstile 验证值")
+    private String turnstile;
 }

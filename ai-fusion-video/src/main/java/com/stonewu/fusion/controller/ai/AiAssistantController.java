@@ -52,14 +52,16 @@ public class AiAssistantController {
     @Operation(summary = "获取对话消息列表")
     @GetMapping("/conversations/{conversationId}/messages")
     public CommonResult<List<AgentMessage>> listMessages(@PathVariable String conversationId) {
+        Long userId = requireCurrentUserId();
+        conversationService.getByConversationIdForUser(conversationId, userId);
         return CommonResult.success(messageService.listByConversation(conversationId));
     }
 
     @Operation(summary = "删除对话")
     @DeleteMapping("/conversations/{id}")
     public CommonResult<Boolean> deleteConversation(@PathVariable Long id) {
-        conversationService.delete(id);
+        Long userId = requireCurrentUserId();
+        conversationService.deleteForUser(id, userId);
         return CommonResult.success(true);
     }
 }
-

@@ -2,6 +2,7 @@ package com.stonewu.fusion.service.ai.provider;
 
 import com.stonewu.fusion.controller.ai.vo.RemoteModelVO;
 import com.stonewu.fusion.entity.ai.AiModel;
+import com.stonewu.fusion.entity.ai.ApiConfig;
 import io.agentscope.core.model.Model;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.model.ChatModel;
@@ -31,6 +32,11 @@ public class AiProviderService {
 
     public List<RemoteModelVO> listRemoteModels(Long apiConfigId) {
         AiProviderContext context = contextFactory.createForApiConfig(apiConfigId);
+        return providerRegistry.getProvider(context).listRemoteModels(context);
+    }
+
+    public List<RemoteModelVO> listRemoteModels(ApiConfig apiConfig) {
+        AiProviderContext context = contextFactory.createForApiConfig(apiConfig);
         return providerRegistry.getProvider(context).listRemoteModels(context);
     }
 }

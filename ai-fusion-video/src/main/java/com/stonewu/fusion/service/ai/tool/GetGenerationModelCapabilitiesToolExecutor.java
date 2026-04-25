@@ -85,11 +85,11 @@ public class GetGenerationModelCapabilitiesToolExecutor implements ToolExecutor 
                     .set("retryPolicy", "如果某个字段不受支持，请直接删除该字段并改写 prompt，不要重复用相同的不支持参数重试。\n");
 
             if (!"video".equals(requestedType)) {
-                ResolvedModel imageModel = resolvePreferredModel(MODEL_TYPE_IMAGE);
+                ResolvedModel imageModel = resolvePreferredModel(context.getUserId(), MODEL_TYPE_IMAGE);
                 result.set("image", buildImageResult(imageModel));
             }
             if (!"image".equals(requestedType)) {
-                ResolvedModel videoModel = resolvePreferredModel(MODEL_TYPE_VIDEO);
+                ResolvedModel videoModel = resolvePreferredModel(context.getUserId(), MODEL_TYPE_VIDEO);
                 result.set("video", buildVideoResult(videoModel));
             }
             return result.toString();
@@ -164,13 +164,17 @@ public class GetGenerationModelCapabilitiesToolExecutor implements ToolExecutor 
         return String.join(" ", hints);
     }
 
-    private ResolvedModel resolvePreferredModel(int modelType) {
-        AiModel defaultModel = aiModelService.getDefaultByType(modelType);
+    private ResolvedModel resolvePreferredModel(Long userId, int modelType) {
+        AiModel defaultModel = userId != null
+                ? aiModelService.getDefaultByTypeForUser(userId, modelType)
+                : aiModelService.getDefaultByType(modelType);
         if (defaultModel != null) {
             return new ResolvedModel(defaultModel, "default_model");
         }
 
-        List<AiModel> models = aiModelService.getListByType(modelType);
+        List<AiModel> models = userId != null
+                ? aiModelService.getListByTypeForUser(userId, modelType)
+                : aiModelService.getListByType(modelType);
         if (!models.isEmpty()) {
             return new ResolvedModel(models.get(0), "first_enabled_fallback");
         }

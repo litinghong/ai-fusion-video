@@ -25,6 +25,9 @@ public class ApiConfig extends BaseEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    /** 所属用户ID */
+    private Long userId;
+
     /** 配置名称 */
     private String name;
 

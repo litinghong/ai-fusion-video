@@ -20,6 +20,16 @@ import java.util.List;
 @Slf4j
 public class SystemConfigService {
 
+    public static final String KEY_THIRD_PARTY_NEWAPI_ENABLED = "third_party_newapi_enabled";
+    public static final String KEY_THIRD_PARTY_NEWAPI_BASE_URL = "third_party_newapi_base_url";
+    public static final String KEY_THIRD_PARTY_NEWAPI_EMAIL_VERIFICATION_ENABLED =
+            "third_party_newapi_email_verification_enabled";
+    public static final String KEY_THIRD_PARTY_NEWAPI_MODEL_SYNC_ENABLED =
+            "third_party_newapi_model_sync_enabled";
+    public static final String KEY_THIRD_PARTY_NEWAPI_SYSTEM_ACCESS_TOKEN =
+            "third_party_newapi_system_access_token";
+    public static final String DEFAULT_THIRD_PARTY_NEWAPI_BASE_URL = "http://localhost:3001";
+
     private final SystemConfigMapper systemConfigMapper;
 
     /**
@@ -97,5 +107,50 @@ public class SystemConfigService {
             return siteBaseUrl + relativePath;
         }
         return null;
+    }
+
+    public boolean isThirdPartyNewApiEnabled() {
+        return parseBoolean(getValue(KEY_THIRD_PARTY_NEWAPI_ENABLED), false);
+    }
+
+    public boolean isThirdPartyNewApiEmailVerificationEnabled() {
+        return parseBoolean(getValue(KEY_THIRD_PARTY_NEWAPI_EMAIL_VERIFICATION_ENABLED), false);
+    }
+
+    public String getThirdPartyNewApiBaseUrl() {
+        String configured = getValue(KEY_THIRD_PARTY_NEWAPI_BASE_URL);
+        if (StrUtil.isBlank(configured)) {
+            return DEFAULT_THIRD_PARTY_NEWAPI_BASE_URL;
+        }
+        String normalized = configured.trim();
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return StrUtil.isBlank(normalized) ? DEFAULT_THIRD_PARTY_NEWAPI_BASE_URL : normalized;
+    }
+
+    public boolean isThirdPartyNewApiModelSyncEnabled() {
+        return parseBoolean(getValue(KEY_THIRD_PARTY_NEWAPI_MODEL_SYNC_ENABLED), true);
+    }
+
+    public String getThirdPartyNewApiSystemAccessToken() {
+        String value = getValue(KEY_THIRD_PARTY_NEWAPI_SYSTEM_ACCESS_TOKEN);
+        return StrUtil.isBlank(value) ? null : value.trim();
+    }
+
+    private boolean parseBoolean(String value, boolean defaultValue) {
+        if (StrUtil.isBlank(value)) {
+            return defaultValue;
+        }
+        String normalized = value.trim().toLowerCase();
+        if ("1".equals(normalized) || "true".equals(normalized) || "yes".equals(normalized)
+                || "on".equals(normalized)) {
+            return true;
+        }
+        if ("0".equals(normalized) || "false".equals(normalized) || "no".equals(normalized)
+                || "off".equals(normalized)) {
+            return false;
+        }
+        return defaultValue;
     }
 }

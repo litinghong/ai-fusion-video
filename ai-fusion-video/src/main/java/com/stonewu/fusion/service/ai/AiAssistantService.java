@@ -99,7 +99,7 @@ public class AiAssistantService {
 
         try {
             // 1. 获取 ChatModel
-            ChatModel chatModel = getChatModel(reqVO.getModelId());
+            ChatModel chatModel = getChatModel(reqVO.getModelId(), userId);
 
             // 2. 获取系统提示词和指令
             String systemPrompt = getSystemPrompt(reqVO);
@@ -420,15 +420,15 @@ public class AiAssistantService {
 
     // ========== 私有方法 ==========
 
-    private ChatModel getChatModel(Long modelId) {
+    private ChatModel getChatModel(Long modelId, Long userId) {
         AiModel model;
         if (modelId != null) {
-            model = aiModelService.getById(modelId);
+            model = aiModelService.getByIdForUser(modelId, userId);
             if (model == null) {
                 throw new BusinessException("AI 模型不存在: " + modelId);
             }
         } else {
-            model = aiModelService.getDefaultByType(1); // CHAT type
+            model = aiModelService.getDefaultByTypeForUser(userId, 1); // CHAT type
             if (model == null) {
                 throw new BusinessException("未配置默认对话模型");
             }

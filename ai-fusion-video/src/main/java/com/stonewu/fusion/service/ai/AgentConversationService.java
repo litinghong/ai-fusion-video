@@ -1,6 +1,7 @@
 package com.stonewu.fusion.service.ai;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.stonewu.fusion.common.BusinessException;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.stonewu.fusion.common.PageResult;
 import com.stonewu.fusion.entity.ai.AgentConversation;
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Agent 对话索引服务
@@ -70,6 +72,22 @@ public class AgentConversationService {
                 new LambdaQueryWrapper<AgentConversation>().eq(AgentConversation::getConversationId, conversationId));
     }
 
+    public AgentConversation getByConversationIdForUser(String conversationId, Long userId) {
+        AgentConversation conversation = getByConversationId(conversationId);
+        assertConversationOwner(conversation, userId);
+        return conversation;
+    }
+
+    public AgentConversation getById(Long id) {
+        return conversationMapper.selectById(id);
+    }
+
+    public AgentConversation getByIdForUser(Long id, Long userId) {
+        AgentConversation conversation = conversationMapper.selectById(id);
+        assertConversationOwner(conversation, userId);
+        return conversation;
+    }
+
     public PageResult<AgentConversation> listByUser(Long userId, int pageNo, int pageSize) {
         return PageResult.of(conversationMapper.selectPage(new Page<>(pageNo, pageSize),
                 new LambdaQueryWrapper<AgentConversation>()
@@ -103,5 +121,17 @@ public class AgentConversationService {
 
     public void delete(Long id) {
         conversationMapper.deleteById(id);
+    }
+
+    public void deleteForUser(Long id, Long userId) {
+        AgentConversation conversation = conversationMapper.selectById(id);
+        assertConversationOwner(conversation, userId);
+        conversationMapper.deleteById(id);
+    }
+
+    private void assertConversationOwner(AgentConversation conversation, Long userId) {
+        if (conversation == null || !Objects.equals(conversation.getUserId(), userId)) {
+            throw new BusinessException(404, "对话不存在");
+        }
     }
 }

@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.stonewu.fusion.common.BaseEntity;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 /**
  * 用户实体
  * <p>
@@ -46,4 +48,7 @@ public class User extends BaseEntity {
     /** 状态：0-禁用 1-启用 */
     @Builder.Default
     private Integer status = 1;
+
+    /** 最后登录时间 */
+    private LocalDateTime lastLoginTime;
 }

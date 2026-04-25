@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 项目服务
@@ -43,6 +44,14 @@ public class ProjectService {
         return PageResult.of(projectMapper.selectPage(new Page<>(pageNo, pageSize), null));
     }
 
+    public PageResult<Project> pageByOwner(Long ownerId, int pageNo, int pageSize) {
+        return PageResult.of(projectMapper.selectPage(new Page<>(pageNo, pageSize),
+                new LambdaQueryWrapper<Project>()
+                        .eq(Project::getOwnerType, 1)
+                        .eq(Project::getOwnerId, ownerId)
+                        .orderByDesc(Project::getCreateTime)));
+    }
+
     @Cacheable(value = "project", key = "'owner:' + #ownerType + ':' + #ownerId")
     public List<Project> listByOwner(Integer ownerType, Long ownerId) {
         return projectMapper.selectList(new LambdaQueryWrapper<Project>()
@@ -64,6 +73,29 @@ public class ProjectService {
         getById(project.getId());
         projectMapper.updateById(project);
         return project;
+    }
+
+    public Project getByIdForUser(Long id, Long userId) {
+        Project project = getById(id);
+        assertProjectOwner(project, userId);
+        return project;
+    }
+
+    @CacheEvict(value = "project", allEntries = true)
+    @Transactional
+    public Project updateForUser(Project project, Long userId) {
+        Project existing = getById(project.getId());
+        assertProjectOwner(existing, userId);
+        projectMapper.updateById(project);
+        return project;
+    }
+
+    @CacheEvict(value = "project", allEntries = true)
+    @Transactional
+    public void deleteForUser(Long id, Long userId) {
+        Project existing = getById(id);
+        assertProjectOwner(existing, userId);
+        delete(id);
     }
 
     @CacheEvict(value = "project", allEntries = true)
@@ -91,6 +123,14 @@ public class ProjectService {
         return memberMapper.exists(new LambdaQueryWrapper<ProjectMember>()
                 .eq(ProjectMember::getProjectId, projectId)
                 .eq(ProjectMember::getUserId, userId));
+    }
+
+    private void assertProjectOwner(Project project, Long userId) {
+        if (project == null
+                || !Objects.equals(project.getOwnerType(), 1)
+                || !Objects.equals(project.getOwnerId(), userId)) {
+            throw new BusinessException(404, "项目不存在");
+        }
     }
 
     @Cacheable(value = "projectMember", key = "#projectId")

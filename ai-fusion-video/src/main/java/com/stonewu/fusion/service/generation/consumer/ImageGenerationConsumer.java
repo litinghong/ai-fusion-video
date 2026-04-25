@@ -74,7 +74,7 @@ public class ImageGenerationConsumer {
      * 提交生图任务到队列
      */
     public String submitTask(ImageTask task) {
-        AiModel queueModel = resolveQueueModel(task.getModelId());
+        AiModel queueModel = resolveQueueModel(task.getModelId(), task.getUserId());
         if (queueModel == null) {
             throw new BusinessException("没有可用的图片生成模型");
         }
@@ -206,11 +206,11 @@ public class ImageGenerationConsumer {
         AiModel model = null;
         if (task.getModelId() != null) {
             try {
-                model = aiModelService.getById(task.getModelId());
+                model = aiModelService.getByIdForUser(task.getModelId(), task.getUserId());
                 if (model != null) {
                     strategy = map.get(model.getCode());
                     if (model.getApiConfigId() != null) {
-                        apiConfig = apiConfigService.getById(model.getApiConfigId());
+                        apiConfig = apiConfigService.getByIdForUser(model.getApiConfigId(), task.getUserId());
                         if (strategy == null && apiConfig != null) {
                             strategy = map.get(apiConfig.getPlatform());
                         }
@@ -224,7 +224,7 @@ public class ImageGenerationConsumer {
             strategy = map.values().iterator().next();
         }
         if (apiConfig == null) {
-            List<ApiConfig> configs = apiConfigService.getEnabledList();
+            List<ApiConfig> configs = apiConfigService.getEnabledListByUser(task.getUserId());
             for (ApiConfig cfg : configs) {
                 if (strategy.getName().equals(cfg.getPlatform())) {
                     apiConfig = cfg;
@@ -269,15 +269,17 @@ public class ImageGenerationConsumer {
     }
 
     private int resolveQueueMaxConcurrent(Long modelId) {
-        AiModel model = resolveQueueModel(modelId);
+        AiModel model = resolveQueueModel(modelId, null);
         Integer configured = model != null ? model.getMaxConcurrency() : null;
         return configured != null && configured > 0 ? configured : 1;
     }
 
-    private AiModel resolveQueueModel(Long modelId) {
+    private AiModel resolveQueueModel(Long modelId, Long userId) {
         if (modelId != null) {
             try {
-                AiModel model = aiModelService.getById(modelId);
+                AiModel model = userId != null
+                        ? aiModelService.getByIdForUser(modelId, userId)
+                        : aiModelService.getById(modelId);
                 if (model != null && model.getStatus() != null && model.getStatus() == 1) {
                     return model;
                 }
@@ -286,12 +288,15 @@ public class ImageGenerationConsumer {
             }
         }
 
-        AiModel defaultModel = aiModelService.getDefaultByType(MODEL_TYPE_IMAGE);
+        if (userId == null) {
+            return null;
+        }
+        AiModel defaultModel = aiModelService.getDefaultByTypeForUser(userId, MODEL_TYPE_IMAGE);
         if (defaultModel != null) {
             return defaultModel;
         }
 
-        List<AiModel> imageModels = aiModelService.getListByType(MODEL_TYPE_IMAGE);
+        List<AiModel> imageModels = aiModelService.getListByTypeForUser(userId, MODEL_TYPE_IMAGE);
         return imageModels.isEmpty() ? null : imageModels.get(0);
     }
 

@@ -35,20 +35,22 @@ public class ProjectController {
     @Operation(summary = "项目分页")
     @GetMapping("/page")
     public CommonResult<PageResult<Project>> page(PageParam pageParam) {
-        return CommonResult.success(projectService.page(pageParam.getPageNo(), pageParam.getPageSize()));
+        Long ownerId = SecurityUtils.requireCurrentUserId();
+        return CommonResult.success(projectService.pageByOwner(ownerId, pageParam.getPageNo(), pageParam.getPageSize()));
     }
 
     @Operation(summary = "获取项目详情")
     @GetMapping("/{id}")
     public CommonResult<Project> get(@PathVariable Long id) {
-        return CommonResult.success(projectService.getById(id));
+        Long ownerId = SecurityUtils.requireCurrentUserId();
+        return CommonResult.success(projectService.getByIdForUser(id, ownerId));
     }
 
     @Operation(summary = "按归属查询项目列表")
     @GetMapping("/list")
     public CommonResult<List<Project>> list() {
         // ownerId 和 ownerType 均由后端决定，当前只有个人版，固定为 1
-        Long ownerId = SecurityUtils.getCurrentUserId();
+        Long ownerId = SecurityUtils.requireCurrentUserId();
         return CommonResult.success(projectService.listByOwner(1, ownerId));
     }
 
@@ -57,7 +59,7 @@ public class ProjectController {
     public CommonResult<Project> create(@Valid @RequestBody ProjectCreateReqVO reqVO) {
         Project project = ProjectConvert.INSTANCE.convert(reqVO);
         // ownerId 和 ownerType 由后端决定，不信任前端传值，当前固定个人版
-        project.setOwnerId(SecurityUtils.getCurrentUserId());
+        project.setOwnerId(SecurityUtils.requireCurrentUserId());
         project.setOwnerType(1);
         return CommonResult.success(projectService.create(project));
     }
@@ -66,13 +68,15 @@ public class ProjectController {
     @PutMapping
     public CommonResult<Project> update(@Valid @RequestBody ProjectUpdateReqVO reqVO) {
         Project project = ProjectConvert.INSTANCE.convert(reqVO);
-        return CommonResult.success(projectService.update(project));
+        Long ownerId = SecurityUtils.requireCurrentUserId();
+        return CommonResult.success(projectService.updateForUser(project, ownerId));
     }
 
     @Operation(summary = "删除项目")
     @DeleteMapping("/{id}")
     public CommonResult<Boolean> delete(@PathVariable Long id) {
-        projectService.delete(id);
+        Long ownerId = SecurityUtils.requireCurrentUserId();
+        projectService.deleteForUser(id, ownerId);
         return CommonResult.success(true);
     }
 

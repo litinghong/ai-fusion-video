@@ -58,7 +58,7 @@ public class VolcengineVideoStrategy implements VideoGenerationStrategy {
     @Override
     public String submit(VideoTask task) {
         AiModel model = resolveModel(task);
-        ApiConfig apiConfig = resolveApiConfig(model);
+        ApiConfig apiConfig = resolveApiConfig(model, task.getUserId());
         String modelCode = resolveModelCode(model);
 
         ArkService service = buildArkService(apiConfig);
@@ -115,7 +115,7 @@ public class VolcengineVideoStrategy implements VideoGenerationStrategy {
     @Override
     public void poll(String platformTaskId, VideoTask task) {
         AiModel model = resolveModel(task);
-        ApiConfig apiConfig = resolveApiConfig(model);
+        ApiConfig apiConfig = resolveApiConfig(model, task.getUserId());
 
         ArkService service = buildArkService(apiConfig);
         try {
@@ -306,8 +306,11 @@ public class VolcengineVideoStrategy implements VideoGenerationStrategy {
      */
     private AiModel resolveModel(VideoTask task) {
         if (task.getModelId() != null) {
+            if (task.getUserId() == null) {
+                return null;
+            }
             try {
-                return aiModelService.getById(task.getModelId());
+                return aiModelService.getByIdForUser(task.getModelId(), task.getUserId());
             } catch (Exception e) {
                 log.warn("[Volcengine Video] 获取模型失败: modelId={}", task.getModelId());
             }
@@ -318,10 +321,13 @@ public class VolcengineVideoStrategy implements VideoGenerationStrategy {
     /**
      * 从 AiModel 解析关联的 ApiConfig
      */
-    private ApiConfig resolveApiConfig(AiModel model) {
+    private ApiConfig resolveApiConfig(AiModel model, Long userId) {
         if (model != null && model.getApiConfigId() != null) {
+            if (userId == null) {
+                throw new RuntimeException("缺少任务 userId，无法解析火山引擎视频生成 API 配置");
+            }
             try {
-                ApiConfig config = apiConfigService.getById(model.getApiConfigId());
+                ApiConfig config = apiConfigService.getByIdForUser(model.getApiConfigId(), userId);
                 if (config != null) {
                     return config;
                 }

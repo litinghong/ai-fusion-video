@@ -13,11 +13,11 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import static com.stonewu.fusion.security.SecurityUtils.requireCurrentUserId;
 import static com.stonewu.fusion.common.CommonResult.success;
 
 @Tag(name = "AI模型管理")
@@ -31,8 +31,8 @@ public class AiModelController {
 
     @PostMapping("/create")
     @Operation(summary = "创建AI模型")
-    @PreAuthorize("hasRole('ADMIN')")
     public CommonResult<Long> create(@Valid @RequestBody AiModelCreateReqVO reqVO) {
+        Long userId = requireCurrentUserId();
         AiModel model = AiModel.builder()
                 .name(reqVO.getName()).code(reqVO.getCode()).modelType(reqVO.getModelType())
                 .icon(reqVO.getIcon()).description(reqVO.getDescription())
@@ -47,14 +47,14 @@ public class AiModelController {
                 ? reqVO.getContextWindow() : null)
                 .apiConfigId(reqVO.getApiConfigId())
                 .build();
-        return success(aiModelService.createAiModel(model));
+        return success(aiModelService.createAiModel(model, userId));
     }
 
     @PutMapping("/update")
     @Operation(summary = "更新AI模型")
-    @PreAuthorize("hasRole('ADMIN')")
     public CommonResult<Boolean> update(@Valid @RequestBody AiModelUpdateReqVO reqVO) {
-        aiModelService.updateAiModel(reqVO.getId(), reqVO.getName(), reqVO.getCode(),
+        Long userId = requireCurrentUserId();
+        aiModelService.updateAiModel(userId, reqVO.getId(), reqVO.getName(), reqVO.getCode(),
                 reqVO.getModelType(), reqVO.getIcon(), reqVO.getDescription(),
                 reqVO.getSort(), reqVO.getStatus(), reqVO.getConfig(), reqVO.getDefaultModel(),
                 reqVO.getApiConfigId(), reqVO.getMaxConcurrency(), reqVO.getSupportVision(),
@@ -64,9 +64,9 @@ public class AiModelController {
 
     @DeleteMapping("/delete")
     @Operation(summary = "删除AI模型")
-    @PreAuthorize("hasRole('ADMIN')")
     public CommonResult<Boolean> delete(@RequestParam("id") Long id) {
-        aiModelService.deleteAiModel(id);
+        Long userId = requireCurrentUserId();
+        aiModelService.deleteAiModel(userId, id);
         return success(true);
     }
 
@@ -74,15 +74,16 @@ public class AiModelController {
     @Operation(summary = "获取AI模型详情")
     @Parameter(name = "id", description = "模型ID", required = true)
     public CommonResult<AiModelRespVO> get(@RequestParam("id") Long id) {
-        AiModel model = aiModelService.getById(id);
+        Long userId = requireCurrentUserId();
+        AiModel model = aiModelService.getByIdForUser(id, userId);
         return success(model == null ? null : AiModelConvert.INSTANCE.convert(model));
     }
 
     @GetMapping("/page")
     @Operation(summary = "AI模型分页列表")
-    @PreAuthorize("hasRole('ADMIN')")
     public CommonResult<PageResult<AiModelRespVO>> page(@Valid AiModelPageReqVO reqVO) {
-        return success(aiModelService.getPage(reqVO.getName(), reqVO.getCode(),
+        Long userId = requireCurrentUserId();
+        return success(aiModelService.getPageByUser(userId, reqVO.getName(), reqVO.getCode(),
                 reqVO.getModelType(), reqVO.getStatus(), reqVO.getPageNo(), reqVO.getPageSize())
                 .map(AiModelConvert.INSTANCE::convert));
     }
@@ -90,14 +91,16 @@ public class AiModelController {
     @GetMapping("/list")
     @Operation(summary = "获取启用的AI模型列表")
     public CommonResult<List<AiModelRespVO>> list() {
-        return success(AiModelConvert.INSTANCE.convertList(aiModelService.getEnabledList()));
+        Long userId = requireCurrentUserId();
+        return success(AiModelConvert.INSTANCE.convertList(aiModelService.getEnabledListByUser(userId)));
     }
 
     @GetMapping("/list-by-type")
     @Operation(summary = "按类型获取AI模型列表")
     @Parameter(name = "type", description = "模型类型", required = true)
     public CommonResult<List<AiModelRespVO>> listByType(@RequestParam("type") Integer type) {
-        return success(AiModelConvert.INSTANCE.convertList(aiModelService.getListByType(type)));
+        Long userId = requireCurrentUserId();
+        return success(AiModelConvert.INSTANCE.convertList(aiModelService.getListByTypeForUser(userId, type)));
     }
 
     @GetMapping("/presets")
@@ -117,4 +120,3 @@ public class AiModelController {
         return success(modelPresetService.getPresetConfig(code));
     }
 }
-

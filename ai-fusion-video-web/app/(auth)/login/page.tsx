@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { AuthLayout } from "@/components/ui/auth-layout";
 import { useAuthStore } from "@/lib/store/auth-store";
+import * as authApi from "@/lib/api/auth";
 
 import { getInitStatus } from "@/lib/api/system-init";
 
@@ -22,20 +23,32 @@ function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [initReady, setInitReady] = useState(false);
+  const [thirdPartyEnabled, setThirdPartyEnabled] = useState(false);
 
   // 检查系统初始化状态，未完成前不渲染登录表单
   useEffect(() => {
+    const loadThirdPartyStatus = async () => {
+      try {
+        const status = await authApi.getThirdPartyNewApiStatus();
+        setThirdPartyEnabled(!!status.enabled);
+      } catch {
+        setThirdPartyEnabled(false);
+      }
+    };
+
     getInitStatus()
       .then((status) => {
         if (!status.initialized) {
           router.replace("/setup");
         } else {
           setInitReady(true);
+          void loadThirdPartyStatus();
         }
       })
       .catch(() => {
         // 后端不可用时仍显示登录页
         setInitReady(true);
+        void loadThirdPartyStatus();
       });
   }, [router]);
 
@@ -53,7 +66,7 @@ function LoginContent() {
     setLoading(true);
 
     try {
-      await login(username, password);
+      await login(username, password, "");
 
       // 设置 cookie 供 proxy 使用
       const store = JSON.parse(localStorage.getItem("auth-storage") || "{}");
@@ -88,6 +101,9 @@ function LoginContent() {
           欢迎回来
         </h1>
         <p className="text-base text-white/50 font-light">登录到你的账户</p>
+        {thirdPartyEnabled && (
+          <p className="text-xs text-emerald-300/80">普通用户将通过 NewAPI 第三方账号登录</p>
+        )}
       </div>
 
       {/* 登录表单 */}
@@ -182,6 +198,15 @@ function LoginContent() {
             "登录"
           )}
         </motion.button>
+
+        <button
+          type="button"
+          onClick={() => router.push("/register")}
+          className="w-full text-sm text-white/60 hover:text-white transition-colors pt-1"
+          disabled={loading}
+        >
+          还没有账号？去注册
+        </button>
       </form>
 
       {/* 底部信息 */}

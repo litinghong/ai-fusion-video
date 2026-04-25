@@ -29,6 +29,7 @@ export const itemVariants = {
 
 export const platformIconColors: Record<string, { color: string; bg: string }> = {
   openai_compatible: { color: "text-emerald-400", bg: "bg-emerald-500/10" },
+  newapi: { color: "text-lime-400", bg: "bg-lime-500/10" },
   volcengine: { color: "text-sky-400", bg: "bg-sky-500/10" },
   vertex_ai: { color: "text-blue-400", bg: "bg-blue-500/10" },
   gemini: { color: "text-teal-400", bg: "bg-teal-500/10" },
@@ -61,6 +62,7 @@ export interface PlatformField {
 export function getPlatformFields(platform: string): PlatformField[] {
   switch (platform) {
     case "openai_compatible":
+    case "newapi":
     case "volcengine":
       return [
         { key: "apiUrl", label: "API 地址", placeholder: "https://api.openai.com（只填根域名）", type: "text" },

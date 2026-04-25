@@ -104,7 +104,10 @@ public class GoogleFlowReverseApiImageStrategy implements ImageGenerationStrateg
         if (task.getModelId() == null) {
             throw new BusinessException("GoogleFlowReverseApi 图片任务缺少 modelId");
         }
-        AiModel model = aiModelService.getById(task.getModelId());
+        if (task.getUserId() == null) {
+            throw new BusinessException("GoogleFlowReverseApi 图片任务缺少 userId");
+        }
+        AiModel model = aiModelService.getByIdForUser(task.getModelId(), task.getUserId());
         if (model == null || StrUtil.isBlank(model.getCode())) {
             throw new BusinessException("GoogleFlowReverseApi 图片模型不存在或未配置 code");
         }

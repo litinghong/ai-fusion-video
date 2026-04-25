@@ -16,4 +16,7 @@ public class LoginReqVO {
     @NotBlank(message = "密码不能为空")
     @Size(min = 6, max = 32, message = "密码长度为 6-32 位")
     private String password;
+
+    @Schema(description = "可选的 turnstile 验证值")
+    private String turnstile;
 }

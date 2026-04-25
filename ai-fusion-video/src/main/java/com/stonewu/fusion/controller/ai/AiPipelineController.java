@@ -42,6 +42,8 @@ public class AiPipelineController {
     @Operation(summary = "取消 Pipeline")
     @PostMapping("/cancel")
     public CommonResult<Boolean> cancel(@RequestParam String conversationId) {
+        Long userId = requireCurrentUserId();
+        conversationService.getByConversationIdForUser(conversationId, userId);
         aiAssistantService.cancelStream(conversationId);
         return CommonResult.success(true);
     }
@@ -49,12 +51,16 @@ public class AiPipelineController {
     @Operation(summary = "重连 Pipeline（页面刷新后恢复 SSE）")
     @GetMapping(value = "/reconnect", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<AiChatStreamRespVO> reconnect(@RequestParam String conversationId) {
+        Long userId = requireCurrentUserId();
+        conversationService.getByConversationIdForUser(conversationId, userId);
         return aiAssistantService.reconnectStream(conversationId);
     }
 
     @Operation(summary = "查询 Pipeline 流状态")
     @GetMapping("/status")
     public CommonResult<String> getStatus(@RequestParam String conversationId) {
+        Long userId = requireCurrentUserId();
+        conversationService.getByConversationIdForUser(conversationId, userId);
         return CommonResult.success(aiAssistantService.getStreamStatus(conversationId));
     }
 

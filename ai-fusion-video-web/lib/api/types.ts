@@ -11,6 +11,17 @@ export interface CommonResult<T> {
 export interface LoginReqVO {
   username: string;
   password: string;
+  turnstile?: string;
+}
+
+// 注册请求
+export interface RegisterReqVO {
+  username: string;
+  password: string;
+  nickname?: string;
+  email?: string;
+  emailCode?: string;
+  turnstile?: string;
 }
 
 // 登录响应
@@ -33,6 +44,7 @@ export interface UserRespVO {
   phone: string | null;
   status: number;
   createTime: string;
+  lastLoginTime: string | null;
   roles: string[];
 }
 
@@ -47,4 +59,14 @@ export interface ProfileUpdateReq {
 export interface ChangePasswordReq {
   oldPassword: string;
   newPassword: string;
+}
+
+export interface ThirdPartyNewApiStatusResp {
+  enabled: boolean;
+  emailVerificationEnabled: boolean;
+}
+
+export interface ThirdPartyVerificationReqVO {
+  email: string;
+  turnstile?: string;
 }

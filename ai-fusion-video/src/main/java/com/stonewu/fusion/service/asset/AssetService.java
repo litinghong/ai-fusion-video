@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -40,6 +41,12 @@ public class AssetService {
         return asset;
     }
 
+    public Asset getByIdForUser(Long id, Long userId) {
+        Asset asset = getById(id);
+        assertAssetOwner(asset, userId);
+        return asset;
+    }
+
     public List<Asset> listByProject(Long projectId) {
         return assetMapper.selectList(new LambdaQueryWrapper<Asset>()
                 .eq(Asset::getProjectId, projectId)
@@ -49,6 +56,20 @@ public class AssetService {
     public List<Asset> listByProject(Long projectId, String type, String keyword) {
         LambdaQueryWrapper<Asset> wrapper = new LambdaQueryWrapper<Asset>()
                 .eq(Asset::getProjectId, projectId)
+                .orderByDesc(Asset::getCreateTime);
+        if (type != null && !type.isEmpty()) {
+            wrapper.eq(Asset::getType, type);
+        }
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.like(Asset::getName, keyword.trim());
+        }
+        return assetMapper.selectList(wrapper);
+    }
+
+    public List<Asset> listByProjectForUser(Long projectId, String type, String keyword, Long userId) {
+        LambdaQueryWrapper<Asset> wrapper = new LambdaQueryWrapper<Asset>()
+                .eq(Asset::getProjectId, projectId)
+                .eq(Asset::getUserId, userId)
                 .orderByDesc(Asset::getCreateTime);
         if (type != null && !type.isEmpty()) {
             wrapper.eq(Asset::getType, type);
@@ -77,6 +98,25 @@ public class AssetService {
             map.put("items", itemsMap.getOrDefault(asset.getId(), List.of()));
             return map;
         }).collect(Collectors.toList());
+    }
+
+    public List<Map<String, Object>> listWithItemsByProjectForUser(Long projectId, Long userId) {
+        List<Asset> assets = listByProjectForUser(projectId, null, null, userId);
+        if (assets.isEmpty()) {
+            return List.of();
+        }
+        List<Long> assetIds = assets.stream().map(Asset::getId).toList();
+        List<AssetItem> allItems = assetItemMapper.selectList(new LambdaQueryWrapper<AssetItem>()
+                .in(AssetItem::getAssetId, assetIds)
+                .orderByAsc(AssetItem::getSortOrder));
+
+        Map<Long, List<AssetItem>> itemsMap = allItems.stream()
+                .collect(Collectors.groupingBy(AssetItem::getAssetId));
+        return assets.stream().map(asset -> {
+            Map<String, Object> map = BeanUtil.beanToMap(asset, false, true);
+            map.put("items", itemsMap.getOrDefault(asset.getId(), List.of()));
+            return map;
+        }).toList();
     }
 
     /**
@@ -162,7 +202,24 @@ public class AssetService {
 
     @CacheEvict(value = "asset", allEntries = true)
     @Transactional
+    public Asset updateForUser(Asset asset, Long userId) {
+        Asset existing = getById(asset.getId());
+        assertAssetOwner(existing, userId);
+        assetMapper.updateById(asset);
+        return asset;
+    }
+
+    @CacheEvict(value = "asset", allEntries = true)
+    @Transactional
     public void delete(Long id) {
+        assetMapper.deleteById(id);
+    }
+
+    @CacheEvict(value = "asset", allEntries = true)
+    @Transactional
+    public void deleteForUser(Long id, Long userId) {
+        Asset existing = getById(id);
+        assertAssetOwner(existing, userId);
         assetMapper.deleteById(id);
     }
 
@@ -175,6 +232,13 @@ public class AssetService {
         return item;
     }
 
+    public AssetItem getItemByIdForUser(Long id, Long userId) {
+        AssetItem item = getItemById(id);
+        Asset parent = getById(item.getAssetId());
+        assertAssetOwner(parent, userId);
+        return item;
+    }
+
     @Cacheable(value = "assetItem", key = "'asset:' + #assetId")
     public List<AssetItem> listItems(Long assetId) {
         return assetItemMapper.selectList(new LambdaQueryWrapper<AssetItem>()
@@ -182,9 +246,28 @@ public class AssetService {
                 .orderByAsc(AssetItem::getSortOrder));
     }
 
+    public List<AssetItem> listItemsForUser(Long assetId, Long userId) {
+        Asset asset = getById(assetId);
+        assertAssetOwner(asset, userId);
+        return listItems(assetId);
+    }
+
     @CacheEvict(value = { "assetItem", "asset" }, allEntries = true)
     @Transactional
     public AssetItem createItem(AssetItem item) {
+        assetItemMapper.insert(item);
+        syncCoverIfAbsent(item);
+        return item;
+    }
+
+    @CacheEvict(value = { "assetItem", "asset" }, allEntries = true)
+    @Transactional
+    public AssetItem createItemForUser(AssetItem item, Long userId) {
+        if (item.getAssetId() == null) {
+            throw new BusinessException(400, "assetId 不能为空");
+        }
+        Asset asset = getById(item.getAssetId());
+        assertAssetOwner(asset, userId);
         assetItemMapper.insert(item);
         syncCoverIfAbsent(item);
         return item;
@@ -211,9 +294,50 @@ public class AssetService {
         return item;
     }
 
+    @CacheEvict(value = { "assetItem", "asset" }, allEntries = true)
+    @Transactional
+    public AssetItem updateItemForUser(AssetItem item, Long userId) {
+        AssetItem existing = assetItemMapper.selectById(item.getId());
+        if (existing == null) {
+            throw new BusinessException("子资产不存在: " + item.getId());
+        }
+        Asset sourceAsset = getById(existing.getAssetId());
+        assertAssetOwner(sourceAsset, userId);
+
+        if (item.getAssetId() != null && !Objects.equals(item.getAssetId(), existing.getAssetId())) {
+            Asset targetAsset = getById(item.getAssetId());
+            assertAssetOwner(targetAsset, userId);
+        }
+
+        assetItemMapper.updateById(item);
+        if (item.getAssetId() == null) {
+            item.setAssetId(existing.getAssetId());
+        }
+        if (item.getImageUrl() == null) {
+            item.setImageUrl(existing.getImageUrl());
+        }
+        if (item.getItemType() == null) {
+            item.setItemType(existing.getItemType());
+        }
+        syncCoverIfAbsent(item);
+        return item;
+    }
+
     @CacheEvict(value = "assetItem", allEntries = true)
     @Transactional
     public void deleteItem(Long id) {
+        assetItemMapper.deleteById(id);
+    }
+
+    @CacheEvict(value = "assetItem", allEntries = true)
+    @Transactional
+    public void deleteItemForUser(Long id, Long userId) {
+        AssetItem existing = assetItemMapper.selectById(id);
+        if (existing == null) {
+            return;
+        }
+        Asset asset = getById(existing.getAssetId());
+        assertAssetOwner(asset, userId);
         assetItemMapper.deleteById(id);
     }
 
@@ -236,6 +360,12 @@ public class AssetService {
         } else if (StrUtil.isBlank(asset.getCoverUrl())) {
             asset.setCoverUrl(item.getImageUrl());
             assetMapper.updateById(asset);
+        }
+    }
+
+    private void assertAssetOwner(Asset asset, Long userId) {
+        if (asset == null || !Objects.equals(asset.getUserId(), userId)) {
+            throw new BusinessException(404, "资产不存在");
         }
     }
 }

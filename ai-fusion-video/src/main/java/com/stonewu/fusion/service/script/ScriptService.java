@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 剧本服务（含分集、分场次管理）
@@ -42,6 +43,12 @@ public class ScriptService {
         return script;
     }
 
+    public Script getByIdForUser(Long id, Long userId) {
+        Script script = getById(id);
+        assertScriptOwner(script, userId);
+        return script;
+    }
+
     @Cacheable(value = "script", key = "'project:' + #projectId")
     public Script getByProjectId(Long projectId) {
         return scriptMapper.selectOne(new LambdaQueryWrapper<Script>().eq(Script::getProjectId, projectId));
@@ -50,6 +57,13 @@ public class ScriptService {
     public List<Script> listByProject(Long projectId) {
         return scriptMapper.selectList(new LambdaQueryWrapper<Script>()
                 .eq(Script::getProjectId, projectId)
+                .orderByDesc(Script::getCreateTime));
+    }
+
+    public List<Script> listByProjectForUser(Long projectId, Long userId) {
+        return scriptMapper.selectList(new LambdaQueryWrapper<Script>()
+                .eq(Script::getProjectId, projectId)
+                .eq(Script::getOwnerId, userId)
                 .orderByDesc(Script::getCreateTime));
     }
 
@@ -67,6 +81,15 @@ public class ScriptService {
 
     @CacheEvict(value = "script", allEntries = true)
     @Transactional
+    public Script createForUser(Script script, Long userId) {
+        if (!Objects.equals(script.getOwnerId(), userId)) {
+            throw new BusinessException(403, "无权限操作该剧本");
+        }
+        return create(script);
+    }
+
+    @CacheEvict(value = "script", allEntries = true)
+    @Transactional
     public Script update(Script script) {
         Script existing = getById(script.getId());
         BeanUtil.copyProperties(script, existing,
@@ -76,6 +99,14 @@ public class ScriptService {
             throw new BusinessException("更新失败，数据已被其他操作修改，请刷新后重试");
         }
         return existing;
+    }
+
+    @CacheEvict(value = "script", allEntries = true)
+    @Transactional
+    public Script updateForUser(Script script, Long userId) {
+        Script existing = getById(script.getId());
+        assertScriptOwner(existing, userId);
+        return update(script);
     }
 
     @CacheEvict(value = "script", allEntries = true)
@@ -93,6 +124,14 @@ public class ScriptService {
         scriptMapper.deleteById(id);
     }
 
+    @CacheEvict(value = "script", allEntries = true)
+    @Transactional
+    public void deleteForUser(Long id, Long userId) {
+        Script existing = getById(id);
+        assertScriptOwner(existing, userId);
+        scriptMapper.deleteById(id);
+    }
+
     // ========== 分集 ==========
 
     @Cacheable(value = "episode", key = "#id")
@@ -103,6 +142,12 @@ public class ScriptService {
         return ep;
     }
 
+    public ScriptEpisode getEpisodeByIdForUser(Long id, Long userId) {
+        ScriptEpisode episode = getEpisodeById(id);
+        requireScriptByIdForUser(episode.getScriptId(), userId);
+        return episode;
+    }
+
     @Cacheable(value = "episode", key = "'script:' + #scriptId")
     public List<ScriptEpisode> listEpisodes(Long scriptId) {
         return episodeMapper.selectList(new LambdaQueryWrapper<ScriptEpisode>()
@@ -110,9 +155,22 @@ public class ScriptService {
                 .orderByAsc(ScriptEpisode::getSortOrder));
     }
 
+    public List<ScriptEpisode> listEpisodesForUser(Long scriptId, Long userId) {
+        requireScriptByIdForUser(scriptId, userId);
+        return listEpisodes(scriptId);
+    }
+
     @CacheEvict(value = "episode", allEntries = true)
     @Transactional
     public ScriptEpisode createEpisode(ScriptEpisode episode) {
+        episodeMapper.insert(episode);
+        return episode;
+    }
+
+    @CacheEvict(value = "episode", allEntries = true)
+    @Transactional
+    public ScriptEpisode createEpisodeForUser(ScriptEpisode episode, Long userId) {
+        requireScriptByIdForUser(episode.getScriptId(), userId);
         episodeMapper.insert(episode);
         return episode;
     }
@@ -132,7 +190,23 @@ public class ScriptService {
 
     @CacheEvict(value = "episode", allEntries = true)
     @Transactional
+    public ScriptEpisode updateEpisodeForUser(ScriptEpisode episode, Long userId) {
+        ScriptEpisode existing = getEpisodeById(episode.getId());
+        requireScriptByIdForUser(existing.getScriptId(), userId);
+        return updateEpisode(episode);
+    }
+
+    @CacheEvict(value = "episode", allEntries = true)
+    @Transactional
     public void deleteEpisode(Long id) {
+        episodeMapper.deleteById(id);
+    }
+
+    @CacheEvict(value = "episode", allEntries = true)
+    @Transactional
+    public void deleteEpisodeForUser(Long id, Long userId) {
+        ScriptEpisode existing = getEpisodeById(id);
+        requireScriptByIdForUser(existing.getScriptId(), userId);
         episodeMapper.deleteById(id);
     }
 
@@ -146,11 +220,23 @@ public class ScriptService {
         return scene;
     }
 
+    public ScriptSceneItem getSceneByIdForUser(Long id, Long userId) {
+        ScriptSceneItem scene = getSceneById(id);
+        requireScriptByIdForUser(scene.getScriptId(), userId);
+        return scene;
+    }
+
     @Cacheable(value = "scene", key = "'episode:' + #episodeId")
     public List<ScriptSceneItem> listScenesByEpisode(Long episodeId) {
         return sceneItemMapper.selectList(new LambdaQueryWrapper<ScriptSceneItem>()
                 .eq(ScriptSceneItem::getEpisodeId, episodeId)
                 .orderByAsc(ScriptSceneItem::getSortOrder));
+    }
+
+    public List<ScriptSceneItem> listScenesByEpisodeForUser(Long episodeId, Long userId) {
+        ScriptEpisode episode = getEpisodeById(episodeId);
+        requireScriptByIdForUser(episode.getScriptId(), userId);
+        return listScenesByEpisode(episodeId);
     }
 
     public List<ScriptSceneItem> listScenesByScript(Long scriptId) {
@@ -162,6 +248,19 @@ public class ScriptService {
     @CacheEvict(value = "scene", allEntries = true)
     @Transactional
     public ScriptSceneItem createScene(ScriptSceneItem scene) {
+        sceneItemMapper.insert(scene);
+        return scene;
+    }
+
+    @CacheEvict(value = "scene", allEntries = true)
+    @Transactional
+    public ScriptSceneItem createSceneForUser(ScriptSceneItem scene, Long userId) {
+        if (scene.getEpisodeId() == null) {
+            throw new BusinessException(400, "episodeId 不能为空");
+        }
+        ScriptEpisode episode = getEpisodeById(scene.getEpisodeId());
+        requireScriptByIdForUser(episode.getScriptId(), userId);
+        scene.setScriptId(episode.getScriptId());
         sceneItemMapper.insert(scene);
         return scene;
     }
@@ -182,7 +281,23 @@ public class ScriptService {
 
     @CacheEvict(value = "scene", allEntries = true)
     @Transactional
+    public ScriptSceneItem updateSceneForUser(ScriptSceneItem scene, Long userId) {
+        ScriptSceneItem existing = getSceneById(scene.getId());
+        requireScriptByIdForUser(existing.getScriptId(), userId);
+        return updateScene(scene);
+    }
+
+    @CacheEvict(value = "scene", allEntries = true)
+    @Transactional
     public void deleteScene(Long id) {
+        sceneItemMapper.deleteById(id);
+    }
+
+    @CacheEvict(value = "scene", allEntries = true)
+    @Transactional
+    public void deleteSceneForUser(Long id, Long userId) {
+        ScriptSceneItem existing = getSceneById(id);
+        requireScriptByIdForUser(existing.getScriptId(), userId);
         sceneItemMapper.deleteById(id);
     }
 
@@ -275,5 +390,17 @@ public class ScriptService {
             episode.setTotalScenes(sceneItems.size());
         }
         episodeMapper.updateById(episode);
+    }
+
+    private Script requireScriptByIdForUser(Long scriptId, Long userId) {
+        Script script = getById(scriptId);
+        assertScriptOwner(script, userId);
+        return script;
+    }
+
+    private void assertScriptOwner(Script script, Long userId) {
+        if (script == null || !Objects.equals(script.getOwnerId(), userId)) {
+            throw new BusinessException(404, "剧本不存在");
+        }
     }
 }

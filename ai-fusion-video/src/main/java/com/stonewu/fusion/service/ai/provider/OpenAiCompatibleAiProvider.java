@@ -20,6 +20,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,7 +33,7 @@ import java.util.Set;
 public class OpenAiCompatibleAiProvider extends AbstractAiProvider {
 
     private static final Set<String> SUPPORTED_PLATFORMS = Set.of(
-            "openai_compatible", "openai", "deepseek", "zhipu", "moonshot", "volcengine", "siliconflow");
+            "openai_compatible", "openai", "newapi", "deepseek", "zhipu", "moonshot", "volcengine", "siliconflow");
 
     @Override
     public boolean supports(String platform) {
@@ -118,9 +119,16 @@ public class OpenAiCompatibleAiProvider extends AbstractAiProvider {
         String url = joinUrl(rootBaseUrl, resolveModelsPath(context));
 
         log.info("[OpenAiCompatibleAiProvider] 获取远程模型列表: {}", url);
-        String response = executeGet(url, context.getApiKey() == null
+        Map<String, String> headers = context.getApiKey() == null
                 ? Map.of()
-                : Map.of("Authorization", "Bearer " + context.getApiKey()));
+                : Map.of("Authorization", "Bearer " + context.getApiKey());
+        if ("newapi".equalsIgnoreCase(context.getPlatform())) {
+            log.info("[NewAPI][REQ] op=获取可用模型, method=GET, url={}, headers={}", url, maskHeaders(headers));
+        }
+        String response = executeGet(url, headers);
+        if ("newapi".equalsIgnoreCase(context.getPlatform())) {
+            log.info("[NewAPI][RESP] op=获取可用模型, method=GET, url={}, body={}", url, response);
+        }
         return parseDataArrayModels(response, context.getPlatform());
     }
 
@@ -181,7 +189,8 @@ public class OpenAiCompatibleAiProvider extends AbstractAiProvider {
     }
 
     private boolean shouldAutoAppendV1Path(AiProviderContext context) {
-        if (!"openai_compatible".equalsIgnoreCase(context.getPlatform())) {
+        String platform = context.getPlatform();
+        if (!"openai_compatible".equalsIgnoreCase(platform) && !"newapi".equalsIgnoreCase(platform)) {
             return true;
         }
         ApiConfig apiConfig = context.getApiConfig();
@@ -196,7 +205,37 @@ public class OpenAiCompatibleAiProvider extends AbstractAiProvider {
             case "moonshot" -> "https://api.moonshot.cn";
             case "siliconflow" -> "https://api.siliconflow.cn";
             case "openai" -> "https://api.openai.com";
+            case "newapi" -> "http://localhost:3001";
             default -> "https://api.openai.com";
         };
+    }
+
+    private Map<String, String> maskHeaders(Map<String, String> headers) {
+        Map<String, String> masked = new LinkedHashMap<>();
+        headers.forEach((key, value) -> {
+            if ("authorization".equalsIgnoreCase(key)) {
+                masked.put(key, maskAuthorization(value));
+            } else {
+                masked.put(key, value);
+            }
+        });
+        return masked;
+    }
+
+    private String maskAuthorization(String authorization) {
+        if (authorization == null || authorization.isBlank()) {
+            return authorization;
+        }
+        String trimmed = authorization.trim();
+        int index = trimmed.indexOf(' ');
+        if (index <= 0 || index >= trimmed.length() - 1) {
+            return "***";
+        }
+        String prefix = trimmed.substring(0, index);
+        String token = trimmed.substring(index + 1);
+        if (token.length() <= 12) {
+            return prefix + " ***";
+        }
+        return prefix + " " + token.substring(0, 8) + "****" + token.substring(token.length() - 4);
     }
 }

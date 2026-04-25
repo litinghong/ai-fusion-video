@@ -111,7 +111,10 @@ public class VolcengineImageStrategy implements ImageGenerationStrategy {
 
     private AiModel resolveModel(ImageTask task) {
         if (task.getModelId() != null) {
-            AiModel model = aiModelService.getById(task.getModelId());
+            if (task.getUserId() == null) {
+                return null;
+            }
+            AiModel model = aiModelService.getByIdForUser(task.getModelId(), task.getUserId());
             if (model != null && StrUtil.isNotBlank(model.getCode())) {
                 return model;
             }

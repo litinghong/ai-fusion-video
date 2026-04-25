@@ -69,7 +69,7 @@ public class VideoGenerationConsumer {
      * 提交生视频任务到队列
      */
     public String submitTask(VideoTask task) {
-        AiModel queueModel = resolveQueueModel(task.getModelId());
+        AiModel queueModel = resolveQueueModel(task.getModelId(), task.getUserId());
         if (queueModel == null) {
             throw new BusinessException("没有可用的视频生成模型");
         }
@@ -192,11 +192,11 @@ public class VideoGenerationConsumer {
         AiModel model = null;
         if (task.getModelId() != null) {
             try {
-                model = aiModelService.getById(task.getModelId());
+                model = aiModelService.getByIdForUser(task.getModelId(), task.getUserId());
                 if (model != null) {
                     strategy = map.get(model.getCode());
                     if (strategy == null && model.getApiConfigId() != null) {
-                        ApiConfig apiConfig = apiConfigService.getById(model.getApiConfigId());
+                        ApiConfig apiConfig = apiConfigService.getByIdForUser(model.getApiConfigId(), task.getUserId());
                         if (apiConfig != null) {
                             strategy = map.get(apiConfig.getPlatform());
                         }
@@ -237,15 +237,17 @@ public class VideoGenerationConsumer {
     }
 
     private int resolveQueueMaxConcurrent(Long modelId) {
-        AiModel model = resolveQueueModel(modelId);
+        AiModel model = resolveQueueModel(modelId, null);
         Integer configured = model != null ? model.getMaxConcurrency() : null;
         return configured != null && configured > 0 ? configured : 1;
     }
 
-    private AiModel resolveQueueModel(Long modelId) {
+    private AiModel resolveQueueModel(Long modelId, Long userId) {
         if (modelId != null) {
             try {
-                AiModel model = aiModelService.getById(modelId);
+                AiModel model = userId != null
+                        ? aiModelService.getByIdForUser(modelId, userId)
+                        : aiModelService.getById(modelId);
                 if (model != null && model.getStatus() != null && model.getStatus() == 1) {
                     return model;
                 }
@@ -254,12 +256,15 @@ public class VideoGenerationConsumer {
             }
         }
 
-        AiModel defaultModel = aiModelService.getDefaultByType(MODEL_TYPE_VIDEO);
+        if (userId == null) {
+            return null;
+        }
+        AiModel defaultModel = aiModelService.getDefaultByTypeForUser(userId, MODEL_TYPE_VIDEO);
         if (defaultModel != null) {
             return defaultModel;
         }
 
-        List<AiModel> videoModels = aiModelService.getListByType(MODEL_TYPE_VIDEO);
+        List<AiModel> videoModels = aiModelService.getListByTypeForUser(userId, MODEL_TYPE_VIDEO);
         return videoModels.isEmpty() ? null : videoModels.get(0);
     }
 

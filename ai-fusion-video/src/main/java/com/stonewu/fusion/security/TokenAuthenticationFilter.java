@@ -41,6 +41,12 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
                     String username = tokenService.getUsernameFromToken(token);
                     if (username != null) {
                         UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                        if (!userDetails.isEnabled()) {
+                            tokenService.removeToken(token);
+                            SecurityContextHolder.clearContext();
+                            filterChain.doFilter(request, response);
+                            return;
+                        }
 
                         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                                 userDetails, null, userDetails.getAuthorities());

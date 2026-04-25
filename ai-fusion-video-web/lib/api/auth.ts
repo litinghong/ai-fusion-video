@@ -1,5 +1,14 @@
 import { http } from "./client";
-import type { LoginReqVO, LoginRespVO, UserRespVO, ProfileUpdateReq, ChangePasswordReq } from "./types";
+import type {
+  LoginReqVO,
+  RegisterReqVO,
+  LoginRespVO,
+  UserRespVO,
+  ProfileUpdateReq,
+  ChangePasswordReq,
+  ThirdPartyNewApiStatusResp,
+  ThirdPartyVerificationReqVO,
+} from "./types";
 
 // 认证相关 API
 
@@ -8,6 +17,13 @@ import type { LoginReqVO, LoginRespVO, UserRespVO, ProfileUpdateReq, ChangePassw
  */
 export function login(data: LoginReqVO): Promise<LoginRespVO> {
   return http.post<never, LoginRespVO>("/auth/login", data);
+}
+
+/**
+ * 注册
+ */
+export function register(data: RegisterReqVO): Promise<LoginRespVO> {
+  return http.post<never, LoginRespVO>("/auth/register", data);
 }
 
 /**
@@ -43,4 +59,18 @@ export function updateProfile(data: ProfileUpdateReq): Promise<boolean> {
  */
 export function changePassword(data: ChangePasswordReq): Promise<boolean> {
   return http.put<never, boolean>("/auth/change-password", data);
+}
+
+/**
+ * 获取 NewAPI 第三方登录状态
+ */
+export function getThirdPartyNewApiStatus(): Promise<ThirdPartyNewApiStatusResp> {
+  return http.get<never, ThirdPartyNewApiStatusResp>("/auth/third-party/newapi/status");
+}
+
+/**
+ * 发送 NewAPI 邮箱验证码
+ */
+export function sendThirdPartyVerification(data: ThirdPartyVerificationReqVO): Promise<boolean> {
+  return http.post<never, boolean>("/auth/third-party/newapi/send-verification", data);
 }

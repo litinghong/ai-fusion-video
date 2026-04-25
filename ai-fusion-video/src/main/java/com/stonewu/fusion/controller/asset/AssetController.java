@@ -10,6 +10,7 @@ import com.stonewu.fusion.convert.asset.AssetConvert;
 import com.stonewu.fusion.entity.asset.Asset;
 import com.stonewu.fusion.entity.asset.AssetItem;
 import com.stonewu.fusion.service.asset.AssetService;
+import com.stonewu.fusion.service.project.ProjectService;
 import com.stonewu.fusion.security.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,6 +34,7 @@ import java.util.Map;
 public class AssetController {
 
     private final AssetService assetService;
+    private final ProjectService projectService;
 
     // ========== 元数据 ==========
 
@@ -54,7 +56,8 @@ public class AssetController {
     @Operation(summary = "获取资产详情")
     @GetMapping("/{id}")
     public CommonResult<Asset> get(@PathVariable Long id) {
-        return CommonResult.success(assetService.getById(id));
+        Long userId = SecurityUtils.requireCurrentUserId();
+        return CommonResult.success(assetService.getByIdForUser(id, userId));
     }
 
     @Operation(summary = "按项目+类型查询资产列表")
@@ -62,13 +65,17 @@ public class AssetController {
     public CommonResult<List<Asset>> list(@RequestParam Long projectId,
                                           @RequestParam(required = false) String type,
                                           @RequestParam(required = false) String keyword) {
-        return CommonResult.success(assetService.listByProject(projectId, type, keyword));
+        Long userId = SecurityUtils.requireCurrentUserId();
+        projectService.getByIdForUser(projectId, userId);
+        return CommonResult.success(assetService.listByProjectForUser(projectId, type, keyword, userId));
     }
 
     @Operation(summary = "按项目查询资产及其所有子资产")
     @GetMapping("/list-with-items")
     public CommonResult<List<Map<String, Object>>> listWithItems(@RequestParam Long projectId) {
-        return CommonResult.success(assetService.listWithItemsByProject(projectId));
+        Long userId = SecurityUtils.requireCurrentUserId();
+        projectService.getByIdForUser(projectId, userId);
+        return CommonResult.success(assetService.listWithItemsByProjectForUser(projectId, userId));
     }
 
     @Operation(summary = "分页查询当前用户的资产（跨项目），含类型统计")
@@ -78,7 +85,7 @@ public class AssetController {
                                                       @RequestParam(required = false) String keyword,
                                                       @RequestParam(defaultValue = "1") int page,
                                                       @RequestParam(defaultValue = "20") int size) {
-        Long userId = SecurityUtils.getCurrentUserId();
+        Long userId = SecurityUtils.requireCurrentUserId();
         IPage<Asset> pageResult = assetService.pageByUser(userId, projectId, type, keyword, page, size);
         // 统计各类型数量：始终反映用户全局数据，不受筛选条件影响
         Map<String, Long> typeCounts = assetService.countByUserGroupByType(userId, null, null);
@@ -96,8 +103,10 @@ public class AssetController {
     public CommonResult<Asset> create(@Valid @RequestBody AssetCreateReqVO reqVO) {
         Asset asset = AssetConvert.INSTANCE.convert(reqVO);
         // userId / ownerType / ownerId 由后端决定
-        asset.setUserId(SecurityUtils.getCurrentUserId());
-        asset.setOwnerId(SecurityUtils.getCurrentUserId());
+        Long userId = SecurityUtils.requireCurrentUserId();
+        projectService.getByIdForUser(reqVO.getProjectId(), userId);
+        asset.setUserId(userId);
+        asset.setOwnerId(userId);
         asset.setOwnerType(1);
         return CommonResult.success(assetService.create(asset));
     }
@@ -106,13 +115,15 @@ public class AssetController {
     @PutMapping
     public CommonResult<Asset> update(@Valid @RequestBody AssetUpdateReqVO reqVO) {
         Asset asset = AssetConvert.INSTANCE.convert(reqVO);
-        return CommonResult.success(assetService.update(asset));
+        Long userId = SecurityUtils.requireCurrentUserId();
+        return CommonResult.success(assetService.updateForUser(asset, userId));
     }
 
     @Operation(summary = "删除资产")
     @DeleteMapping("/{id}")
     public CommonResult<Boolean> delete(@PathVariable Long id) {
-        assetService.delete(id);
+        Long userId = SecurityUtils.requireCurrentUserId();
+        assetService.deleteForUser(id, userId);
         return CommonResult.success(true);
     }
 
@@ -121,33 +132,38 @@ public class AssetController {
     @Operation(summary = "获取子资产详情")
     @GetMapping("/item/{id}")
     public CommonResult<AssetItem> getItem(@PathVariable Long id) {
-        return CommonResult.success(assetService.getItemById(id));
+        Long userId = SecurityUtils.requireCurrentUserId();
+        return CommonResult.success(assetService.getItemByIdForUser(id, userId));
     }
 
     @Operation(summary = "获取子资产列表")
     @GetMapping("/{assetId}/items")
     public CommonResult<List<AssetItem>> listItems(@PathVariable Long assetId) {
-        return CommonResult.success(assetService.listItems(assetId));
+        Long userId = SecurityUtils.requireCurrentUserId();
+        return CommonResult.success(assetService.listItemsForUser(assetId, userId));
     }
 
     @Operation(summary = "创建子资产")
     @PostMapping("/item")
     public CommonResult<AssetItem> createItem(@Valid @RequestBody AssetItemCreateReqVO reqVO) {
         AssetItem item = AssetConvert.INSTANCE.convert(reqVO);
-        return CommonResult.success(assetService.createItem(item));
+        Long userId = SecurityUtils.requireCurrentUserId();
+        return CommonResult.success(assetService.createItemForUser(item, userId));
     }
 
     @Operation(summary = "更新子资产")
     @PutMapping("/item")
     public CommonResult<AssetItem> updateItem(@Valid @RequestBody AssetItemUpdateReqVO reqVO) {
         AssetItem item = AssetConvert.INSTANCE.convert(reqVO);
-        return CommonResult.success(assetService.updateItem(item));
+        Long userId = SecurityUtils.requireCurrentUserId();
+        return CommonResult.success(assetService.updateItemForUser(item, userId));
     }
 
     @Operation(summary = "删除子资产")
     @DeleteMapping("/item/{id}")
     public CommonResult<Boolean> deleteItem(@PathVariable Long id) {
-        assetService.deleteItem(id);
+        Long userId = SecurityUtils.requireCurrentUserId();
+        assetService.deleteItemForUser(id, userId);
         return CommonResult.success(true);
     }
 }

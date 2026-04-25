@@ -42,6 +42,12 @@ public class VideoGenerationService {
         return task;
     }
 
+    public VideoTask getByTaskIdForUser(String taskId, Long userId) {
+        VideoTask task = getByTaskId(taskId);
+        assertTaskOwner(task, userId);
+        return task;
+    }
+
     public PageResult<VideoTask> pageByUser(Long userId, int pageNo, int pageSize) {
         return PageResult.of(taskMapper.selectPage(new Page<>(pageNo, pageSize),
                 new LambdaQueryWrapper<VideoTask>()
@@ -85,6 +91,12 @@ public class VideoGenerationService {
         return itemMapper.selectList(new LambdaQueryWrapper<VideoItem>().eq(VideoItem::getTaskId, taskId));
     }
 
+    public List<VideoItem> listItemsForUser(Long taskId, Long userId) {
+        VideoTask task = getById(taskId);
+        assertTaskOwner(task, userId);
+        return listItems(taskId);
+    }
+
     @CacheEvict(value = "videoItems", allEntries = true)
     @Transactional
     public VideoItem createItem(VideoItem item) {
@@ -101,5 +113,11 @@ public class VideoGenerationService {
 
     public List<VideoTask> findPendingTasks() {
         return taskMapper.selectList(new LambdaQueryWrapper<VideoTask>().in(VideoTask::getStatus, 0, 1));
+    }
+
+    private void assertTaskOwner(VideoTask task, Long userId) {
+        if (task == null || !task.getUserId().equals(userId)) {
+            throw new BusinessException(404, "生视频任务不存在");
+        }
     }
 }

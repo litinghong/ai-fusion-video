@@ -41,6 +41,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { containerVariants, itemVariants } from "../_shared";
+import { useAdminGuard } from "../_admin-guard";
 
 // ============================================================
 // 存储配置 Dialog
@@ -235,14 +236,11 @@ function StorageConfigDialog({ open, onOpenChange, editingConfig, onSaved }: Sto
 // ============================================================
 
 export default function StoragePage() {
+  const { checking, isAdmin } = useAdminGuard();
   const [storageConfigs, setStorageConfigs] = useState<StorageConfigType[]>([]);
   const [storageLoading, setStorageLoading] = useState(true);
   const [storageDialogOpen, setStorageDialogOpen] = useState(false);
   const [editingStorageConfig, setEditingStorageConfig] = useState<StorageConfigType | null>(null);
-
-  useEffect(() => {
-    loadStorageConfigs();
-  }, []);
 
   const loadStorageConfigs = useCallback(async () => {
     try {
@@ -255,6 +253,21 @@ export default function StoragePage() {
       setStorageLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (checking || !isAdmin) {
+      return;
+    }
+    loadStorageConfigs();
+  }, [checking, isAdmin, loadStorageConfigs]);
+
+  if (checking || !isAdmin) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   const handleDeleteStorageConfig = async (id: number) => {
     if (!confirm("确定要删除该存储配置吗？")) return;

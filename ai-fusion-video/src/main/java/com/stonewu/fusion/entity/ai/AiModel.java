@@ -25,6 +25,9 @@ public class AiModel extends BaseEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    /** 所属用户ID */
+    private Long userId;
+
     /** 模型显示名称 */
     private String name;
 

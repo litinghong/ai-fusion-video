@@ -15,10 +15,12 @@ import {
   Bot,
   Settings2,
   HardDrive,
+  Link2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { projectApi, type Project } from "@/lib/api/project";
+import { useAuthStore } from "@/lib/store/auth-store";
 
 // ========== 各模块的二级菜单配置 ==========
 
@@ -53,10 +55,15 @@ const assetItems: SidebarItem[] = [
 ];
 
 const settingsItems: SidebarItem[] = [
-  { key: "general", label: "通用设置", icon: Settings, href: "/settings/general", iconColor: "text-green-400" },
+  { key: "ai-models", label: "AI 服务管理", icon: Bot, href: "/settings/ai-models", iconColor: "text-purple-400" },
   { key: "profile", label: "个人设置", icon: Users, href: "/settings/profile", iconColor: "text-blue-400" },
-  { key: "ai-models", label: "AI 模型", icon: Bot, href: "/settings/ai-models", iconColor: "text-purple-400" },
+];
+
+const adminSettingsItems: SidebarItem[] = [
+  { key: "general", label: "通用设置", icon: Settings, href: "/settings/general", iconColor: "text-green-400" },
   { key: "storage", label: "存储配置", icon: HardDrive, href: "/settings/storage", iconColor: "text-orange-400" },
+  { key: "third-party", label: "第三方集成", icon: Link2, href: "/settings/third-party", iconColor: "text-indigo-400" },
+  { key: "users", label: "用户列表", icon: Users, href: "/settings/users", iconColor: "text-cyan-400" },
 ];
 
 // ========== 侧边栏组件 ==========
@@ -64,6 +71,8 @@ const settingsItems: SidebarItem[] = [
 export function SidebarNav({ onNavigate, project: projectProp }: { onNavigate?: () => void; project?: Project | null }) {
   const router = useRouter();
   const pathname = usePathname();
+  const userRoles = useAuthStore((s) => s.user?.roles || []);
+  const isAdmin = userRoles.includes("admin");
 
   const projectMatch = pathname.match(/^\/projects\/(\d+)/);
   const projectId = projectMatch ? Number(projectMatch[1]) : null;
@@ -123,7 +132,7 @@ export function SidebarNav({ onNavigate, project: projectProp }: { onNavigate?: 
     items = assetItems;
   } else if (pathname.startsWith("/settings")) {
     sectionTitle = "系统设置";
-    items = settingsItems;
+    items = isAdmin ? [...adminSettingsItems, ...settingsItems] : settingsItems;
   }
 
   const getIsActive = (href: string) => {
