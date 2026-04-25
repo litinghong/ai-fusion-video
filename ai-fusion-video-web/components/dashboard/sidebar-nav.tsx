@@ -16,6 +16,7 @@ import {
   Settings2,
   HardDrive,
   Link2,
+  Wallet,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,7 @@ const assetItems: SidebarItem[] = [
 
 const settingsItems: SidebarItem[] = [
   { key: "ai-models", label: "AI 服务管理", icon: Bot, href: "/settings/ai-models", iconColor: "text-purple-400" },
+  { key: "wallet", label: "钱包管理", icon: Wallet, href: "/settings/wallet", iconColor: "text-sky-400" },
   { key: "profile", label: "个人设置", icon: Users, href: "/settings/profile", iconColor: "text-blue-400" },
 ];
 
