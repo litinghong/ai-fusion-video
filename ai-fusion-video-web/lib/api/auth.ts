@@ -62,14 +62,14 @@ export function changePassword(data: ChangePasswordReq): Promise<boolean> {
 }
 
 /**
- * 获取 NewAPI 第三方登录状态
+ * 获取 AiGateways 第三方登录状态
  */
 export function getThirdPartyNewApiStatus(): Promise<ThirdPartyNewApiStatusResp> {
   return http.get<never, ThirdPartyNewApiStatusResp>("/auth/third-party/newapi/status");
 }
 
 /**
- * 发送 NewAPI 邮箱验证码
+ * 发送 AiGateways 邮箱验证码
  */
 export function sendThirdPartyVerification(data: ThirdPartyVerificationReqVO): Promise<boolean> {
   return http.post<never, boolean>("/auth/third-party/newapi/send-verification", data);

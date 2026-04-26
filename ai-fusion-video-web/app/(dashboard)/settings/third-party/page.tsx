@@ -124,7 +124,7 @@ export default function ThirdPartySettingsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">第三方集成</h1>
-            <p className="text-muted-foreground mt-1 text-sm">配置 NewAPI 账号体系接入策略</p>
+            <p className="text-muted-foreground mt-1 text-sm">配置 AiGateways 账号体系接入策略</p>
           </div>
           <button
             onClick={handleSave}
@@ -153,7 +153,7 @@ export default function ThirdPartySettingsPage() {
         >
           <div className="flex items-center gap-2 mb-1">
             <Link2 className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">NewAPI 集成</h3>
+            <h3 className="text-sm font-semibold">AiGateways 集成</h3>
           </div>
 
           <label className="flex items-center gap-3 text-sm">
@@ -167,7 +167,7 @@ export default function ThirdPartySettingsPage() {
           </label>
 
           <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">NewAPI Base URL</label>
+            <label className="text-xs text-muted-foreground">AiGateways Base URL</label>
             <input
               type="url"
               value={configs.baseUrl}
@@ -241,7 +241,7 @@ export default function ThirdPartySettingsPage() {
           </label>
 
           <div className="rounded-lg border border-border/20 bg-muted/10 p-3 text-xs text-muted-foreground leading-relaxed">
-            普通用户启用后将走 NewAPI 注册/登录流程并同步本地账号；管理员账号始终优先使用本项目本地登录。
+            普通用户启用后将走 AiGateways 注册/登录流程并同步本地账号；管理员账号始终优先使用本项目本地登录。
           </div>
         </motion.div>
       )}

@@ -7,7 +7,6 @@ import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AuthLayout } from "@/components/ui/auth-layout";
 import { useAuthStore } from "@/lib/store/auth-store";
-import * as authApi from "@/lib/api/auth";
 
 import { getInitStatus } from "@/lib/api/system-init";
 
@@ -24,38 +23,20 @@ function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [initReady, setInitReady] = useState(false);
-  const [thirdPartyEnabled, setThirdPartyEnabled] = useState(false);
-  const [showDesktopDownload, setShowDesktopDownload] = useState(true);
-
-  useEffect(() => {
-    const isDesktopClient = navigator.userAgent.startsWith("AI Fusion Video Desktop/");
-    setShowDesktopDownload(!isDesktopClient);
-  }, []);
 
   // 检查系统初始化状态，未完成前不渲染登录表单
   useEffect(() => {
-    const loadThirdPartyStatus = async () => {
-      try {
-        const status = await authApi.getThirdPartyNewApiStatus();
-        setThirdPartyEnabled(!!status.enabled);
-      } catch {
-        setThirdPartyEnabled(false);
-      }
-    };
-
     getInitStatus()
       .then((status) => {
         if (!status.initialized) {
           router.replace("/setup");
         } else {
           setInitReady(true);
-          void loadThirdPartyStatus();
         }
       })
       .catch(() => {
         // 后端不可用时仍显示登录页
         setInitReady(true);
-        void loadThirdPartyStatus();
       });
   }, [router]);
 
@@ -108,9 +89,6 @@ function LoginContent() {
           欢迎回来
         </h1>
         <p className="text-base text-white/50 font-light">登录到你的账户</p>
-        {thirdPartyEnabled && (
-          <p className="text-xs text-emerald-300/80">普通用户将通过 NewAPI 第三方账号登录</p>
-        )}
       </div>
 
       {/* 登录表单 */}
@@ -215,16 +193,14 @@ function LoginContent() {
           还没有账号？去注册
         </button>
 
-        {showDesktopDownload && (
-          <a
-            href="https://ai-fusion.tos-cn-guangzhou.volces.com/desktop-app/ai-fusion-video-desktop.exe"
-            download
-            className="flex w-full items-center justify-center gap-2 rounded-full border border-white/10 px-4 py-3 text-sm text-white/70 transition-colors hover:border-white/25 hover:bg-white/5 hover:text-white"
-          >
-            <Download className="size-4" aria-hidden="true" />
-            下载 Windows 桌面版
-          </a>
-        )}
+        <a
+          href="https://ai-fusion.tos-cn-guangzhou.volces.com/desktop-app/ai-fusion-video-desktop.exe"
+          download
+          className="flex w-full items-center justify-center gap-2 rounded-full border border-white/10 px-4 py-3 text-sm text-white/70 transition-colors hover:border-white/25 hover:bg-white/5 hover:text-white"
+        >
+          <Download className="size-4" aria-hidden="true" />
+          下载 Windows 桌面版
+        </a>
       </form>
 
       {/* 底部信息 */}

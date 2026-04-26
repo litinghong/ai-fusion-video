@@ -140,7 +140,7 @@ export interface ApiConfigPageReq {
 /** 平台选项 */
 export const PLATFORM_OPTIONS = [
   { value: "openai_compatible", label: "OpenAI 兼容", description: "OpenAI / DeepSeek / 智谱 / 硅基流动等" },
-  { value: "newapi", label: "NewAPI", description: "NewAPI 平台（OpenAI 兼容）" },
+  { value: "newapi", label: "AiGateways", description: "AiGateways 平台（OpenAI 兼容）" },
   { value: "volcengine", label: "火山引擎（豆包）", description: "字节跳动火山引擎豆包大模型" },
   { value: "vertex_ai", label: "Google Vertex AI", description: "Google Cloud Vertex AI Gemini" },
   { value: "gemini", label: "Google Gemini API", description: "Google AI Studio / Gemini Developer API" },
@@ -171,7 +171,7 @@ export const MODEL_TYPE_LABELS: Record<number, string> = {
 /** 平台标签映射 */
 export const PLATFORM_LABELS: Record<string, string> = {
   openai_compatible: "OpenAI 兼容",
-  newapi: "NewAPI",
+  newapi: "AiGateways",
   openai: "OpenAI",
   deepseek: "DeepSeek",
   volcengine: "火山引擎",

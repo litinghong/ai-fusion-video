@@ -180,7 +180,7 @@ export default function RegisterPage() {
         </h1>
         <p className="text-base text-white/50 font-light">注册后即可开始创作</p>
         {thirdPartyEnabled && (
-          <p className="text-xs text-emerald-300/80">当前注册将通过 NewAPI 第三方账号体系完成</p>
+          <p className="text-xs text-emerald-300/80">当前注册将通过 AiGateways 第三方账号体系完成</p>
         )}
       </div>
 
